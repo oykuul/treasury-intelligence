@@ -1,10 +1,12 @@
+import type { TreasuryDatasetType } from "../treasury/build-liquidity-forecast";
+
 import type { ParsedCsv } from "./csv";
 import type { ColumnSuggestion } from "./detect-columns";
 
 export type PersistAnalysisInput = {
   organizationId: string;
   fileName: string;
-  sourceType?: string | null;
+  sourceType: TreasuryDatasetType;
   parsed: ParsedCsv;
   mappings: ColumnSuggestion[];
 };
@@ -106,7 +108,7 @@ export async function persistAnalysis(
         importId,
         input.organizationId,
         input.fileName,
-        input.sourceType ?? null,
+        input.sourceType,
         "analyzed",
         input.parsed.rowCount,
         input.parsed.columnCount,

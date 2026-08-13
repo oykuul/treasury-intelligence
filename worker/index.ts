@@ -3,6 +3,7 @@ import { persistCanonicalRecords } from "./canonical/persist-records";
 import { parseCsvText } from "./ingestion/csv";
 import { detectColumns } from "./ingestion/detect-columns";
 import { persistAnalysis } from "./ingestion/persist-analysis";
+import { parseSourceType } from "./ingestion/source-type";
 import { persistQualityIssues } from "./quality/persist-quality";
 import { runDataQuality } from "./quality/run-quality";
 import { reconcileImport } from "./reconciliation/reconcile-import";
@@ -43,6 +44,26 @@ export default {
 
       const uploadedFile =
         formData.get("file");
+
+      const sourceTypeResult =
+        parseSourceType(
+          formData.get("sourceType"),
+        );
+
+      if (!sourceTypeResult.valid) {
+        return Response.json(
+          {
+            error:
+              sourceTypeResult.error,
+          },
+          {
+            status: 400,
+          },
+        );
+      }
+
+      const sourceType =
+        sourceTypeResult.sourceType;
 
       if (!(uploadedFile instanceof File)) {
         return Response.json(
@@ -112,8 +133,7 @@ export default {
             fileName:
               uploadedFile.name,
 
-            sourceType:
-              null,
+            sourceType,
 
             parsed,
             mappings,
@@ -209,6 +229,8 @@ export default {
         },
 
         dataset: {
+          sourceType,
+
           rowCount:
             parsed.rowCount,
 
