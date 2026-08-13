@@ -1,8 +1,10 @@
+import { normalizeRecords } from "./canonical/normalize-records";
+import { persistCanonicalRecords } from "./canonical/persist-records";
 import { parseCsvText } from "./ingestion/csv";
 import { detectColumns } from "./ingestion/detect-columns";
 import { persistAnalysis } from "./ingestion/persist-analysis";
-import { runDataQuality } from "./quality/run-quality";
 import { persistQualityIssues } from "./quality/persist-quality";
+import { runDataQuality } from "./quality/run-quality";
 
 const DEV_ORG_ID = "org_demo";
 
@@ -17,7 +19,7 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
 
-    // HEALTH
+    // HEALTH CHECK
     if (
       url.pathname === "/api/health" &&
       request.method === "GET"
@@ -25,12 +27,12 @@ export default {
       return Response.json({
         status: "ok",
         service: "treasury-intelligence-api",
-        version: "0.3.0",
+        version: "0.4.0",
         database: "connected",
       });
     }
 
-    // ANALYZE CSV
+    // ANALYZE IMPORT
     if (
       url.pathname === "/api/imports/analyze" &&
       request.method === "POST"
@@ -65,14 +67,17 @@ export default {
         );
       }
 
-      const csvText = await uploadedFile.text();
+      const csvText =
+        await uploadedFile.text();
 
-      const parsed = parseCsvText(csvText);
+      const parsed =
+        parseCsvText(csvText);
 
       if (parsed.headers.length === 0) {
         return Response.json(
           {
-            error: "CSV could not be parsed",
+            error:
+              "CSV could not be parsed",
             issues: parsed.issues,
           },
           {
@@ -81,31 +86,37 @@ export default {
         );
       }
 
-      // Detect source columns
+      // 1. Detect source columns
       const mappings = detectColumns(
         parsed.headers,
         parsed.rows,
       );
 
-      // Persist import + source columns + mappings
-      const persisted = await persistAnalysis(
-        env.DB,
-        {
-          organizationId: DEV_ORG_ID,
-          fileName: uploadedFile.name,
-          sourceType: null,
+      // 2. Persist import metadata,
+      // source columns and mappings
+      const persisted =
+        await persistAnalysis(
+          env.DB,
+          {
+            organizationId:
+              DEV_ORG_ID,
+            fileName:
+              uploadedFile.name,
+            sourceType: null,
+            parsed,
+            mappings,
+          },
+        );
+
+      // 3. Run deterministic
+      // data quality checks
+      const quality =
+        runDataQuality(
           parsed,
           mappings,
-        },
-      );
+        );
 
-      // Run deterministic data quality checks
-      const quality = runDataQuality(
-        parsed,
-        mappings,
-      );
-
-      // Persist detected quality issues
+      // 4. Persist data quality issues
       const persistedQuality =
         await persistQualityIssues(
           env.DB,
@@ -113,13 +124,37 @@ export default {
           quality,
         );
 
+      // 5. Normalize source rows
+      // into canonical treasury records
+      const canonicalRecords =
+        normalizeRecords(
+          parsed,
+          mappings,
+        );
+
+      // 6. Persist canonical records
+      const persistedCanonical =
+        await persistCanonicalRecords(
+          env.DB,
+          persisted.importId,
+          canonicalRecords,
+        );
+
       return Response.json({
         import: persisted,
 
         quality: {
           ...quality.summary,
-          persisted: persistedQuality,
+          persisted:
+            persistedQuality,
           issues: quality.issues,
+        },
+
+        canonical: {
+          recordsCreated:
+            canonicalRecords.length,
+          persisted:
+            persistedCanonical,
         },
 
         file: {
@@ -129,37 +164,49 @@ export default {
         },
 
         dataset: {
-          rowCount: parsed.rowCount,
-          columnCount: parsed.columnCount,
-          delimiter: parsed.delimiter,
+          rowCount:
+            parsed.rowCount,
+          columnCount:
+            parsed.columnCount,
+          delimiter:
+            parsed.delimiter,
         },
 
         summary: {
-          autoMatched: mappings.filter(
-            (item) =>
-              item.status === "auto_matched",
-          ).length,
+          autoMatched:
+            mappings.filter(
+              (item) =>
+                item.status ===
+                "auto_matched",
+            ).length,
 
-          reviewRequired: mappings.filter(
-            (item) =>
-              item.status === "review",
-          ).length,
+          reviewRequired:
+            mappings.filter(
+              (item) =>
+                item.status ===
+                "review",
+            ).length,
 
-          unmatched: mappings.filter(
-            (item) =>
-              item.status === "unmatched",
-          ).length,
+          unmatched:
+            mappings.filter(
+              (item) =>
+                item.status ===
+                "unmatched",
+            ).length,
 
-          parseIssues: parsed.issues.length,
+          parseIssues:
+            parsed.issues.length,
         },
 
         mappings,
 
-        parseIssues: parsed.issues,
+        parseIssues:
+          parsed.issues,
       });
     }
 
-    // Ensure development organization exists
+    // Ensure demo organization
+    // exists for development
     await env.DB
       .prepare(`
         INSERT OR IGNORE INTO organizations (
@@ -174,7 +221,7 @@ export default {
       )
       .run();
 
-    // CREATE IMPORT
+    // CREATE IMPORT MANUALLY
     if (
       url.pathname === "/api/imports" &&
       request.method === "POST"
@@ -186,7 +233,8 @@ export default {
         if (!body.fileName?.trim()) {
           return Response.json(
             {
-              error: "fileName is required",
+              error:
+                "fileName is required",
             },
             {
               status: 400,
@@ -242,7 +290,8 @@ export default {
       } catch {
         return Response.json(
           {
-            error: "Invalid JSON body",
+            error:
+              "Invalid JSON body",
           },
           {
             status: 400,
@@ -268,7 +317,8 @@ export default {
           .all();
 
       return Response.json({
-        imports: result.results,
+        imports:
+          result.results,
       });
     }
 
@@ -302,7 +352,8 @@ export default {
       if (!item) {
         return Response.json(
           {
-            error: "Import not found",
+            error:
+              "Import not found",
           },
           {
             status: 404,
@@ -313,6 +364,7 @@ export default {
       return Response.json(item);
     }
 
+    // NOT FOUND
     return Response.json(
       {
         error: "Not Found",
