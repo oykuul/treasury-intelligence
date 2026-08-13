@@ -1,0 +1,32 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "treasury-intelligence",
+	"main": "worker/index.ts",
+	"compatibility_date": "2026-08-13",
+
+	"assets": {
+		"not_found_handling": "single-page-application"
+	},
+
+	"observability": {
+		"enabled": true
+	},
+
+	"upload_source_maps": true,
+
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "treasury-intelligence-db",
+			"database_id": "00000000-0000-0000-0000-000000000001",
+			"preview_database_id": "treasury-intelligence-local",
+			"migrations_dir": "migrations"
+		}
+	]
+
+	/**
+	 * Smart Placement
+	 * https://developers.cloudflare.com/workers/configuration/smart-placement/#smart-placement
+	 */
+	// "placement": { "mode": "smart" }
+}
