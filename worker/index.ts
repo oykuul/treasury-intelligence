@@ -1,6 +1,8 @@
 import { parseCsvText } from "./ingestion/csv";
 import { detectColumns } from "./ingestion/detect-columns";
 import { persistAnalysis } from "./ingestion/persist-analysis";
+import { runDataQuality } from "./quality/run-quality";
+import { persistQualityIssues } from "./quality/persist-quality";
 
 const DEV_ORG_ID = "org_demo";
 
@@ -28,7 +30,7 @@ export default {
       });
     }
 
-    // ANALYZE CSV — does not persist yet
+    // ANALYZE CSV
     if (
       url.pathname === "/api/imports/analyze" &&
       request.method === "POST"
@@ -38,8 +40,12 @@ export default {
 
       if (!(uploadedFile instanceof File)) {
         return Response.json(
-          { error: "CSV file is required" },
-          { status: 400 },
+          {
+            error: "CSV file is required",
+          },
+          {
+            status: 400,
+          },
         );
       }
 
@@ -53,11 +59,14 @@ export default {
             error:
               "Only CSV files are supported in this version",
           },
-          { status: 400 },
+          {
+            status: 400,
+          },
         );
       }
 
       const csvText = await uploadedFile.text();
+
       const parsed = parseCsvText(csvText);
 
       if (parsed.headers.length === 0) {
@@ -66,29 +75,53 @@ export default {
             error: "CSV could not be parsed",
             issues: parsed.issues,
           },
-          { status: 400 },
+          {
+            status: 400,
+          },
         );
       }
 
+      // Detect source columns
       const mappings = detectColumns(
         parsed.headers,
         parsed.rows,
       );
 
+      // Persist import + source columns + mappings
       const persisted = await persistAnalysis(
-  env.DB,
-  {
-    organizationId: DEV_ORG_ID,
-    fileName: uploadedFile.name,
-    sourceType: null,
-    parsed,
-    mappings,
-  },
-);
+        env.DB,
+        {
+          organizationId: DEV_ORG_ID,
+          fileName: uploadedFile.name,
+          sourceType: null,
+          parsed,
+          mappings,
+        },
+      );
+
+      // Run deterministic data quality checks
+      const quality = runDataQuality(
+        parsed,
+        mappings,
+      );
+
+      // Persist detected quality issues
+      const persistedQuality =
+        await persistQualityIssues(
+          env.DB,
+          persisted.importId,
+          quality,
+        );
 
       return Response.json({
         import: persisted,
-        
+
+        quality: {
+          ...quality.summary,
+          persisted: persistedQuality,
+          issues: quality.issues,
+        },
+
         file: {
           name: uploadedFile.name,
           size: uploadedFile.size,
@@ -108,7 +141,8 @@ export default {
           ).length,
 
           reviewRequired: mappings.filter(
-            (item) => item.status === "review",
+            (item) =>
+              item.status === "review",
           ).length,
 
           unmatched: mappings.filter(
@@ -120,19 +154,20 @@ export default {
         },
 
         mappings,
+
         parseIssues: parsed.issues,
       });
     }
 
-    // Development organization.
-    // Auth/multi-tenant layer will replace this later.
-    await env.DB.prepare(`
-      INSERT OR IGNORE INTO organizations (
-        id,
-        name
-      )
-      VALUES (?, ?)
-    `)
+    // Ensure development organization exists
+    await env.DB
+      .prepare(`
+        INSERT OR IGNORE INTO organizations (
+          id,
+          name
+        )
+        VALUES (?, ?)
+      `)
       .bind(
         DEV_ORG_ID,
         "Demo Organization",
@@ -150,26 +185,32 @@ export default {
 
         if (!body.fileName?.trim()) {
           return Response.json(
-            { error: "fileName is required" },
-            { status: 400 },
+            {
+              error: "fileName is required",
+            },
+            {
+              status: 400,
+            },
           );
         }
 
-        const importId = crypto.randomUUID();
+        const importId =
+          crypto.randomUUID();
 
-        await env.DB.prepare(`
-          INSERT INTO imports (
-            id,
-            organization_id,
-            file_name,
-            source_type,
-            status,
-            row_count,
-            column_count,
-            mapping_status
-          )
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        `)
+        await env.DB
+          .prepare(`
+            INSERT INTO imports (
+              id,
+              organization_id,
+              file_name,
+              source_type,
+              status,
+              row_count,
+              column_count,
+              mapping_status
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+          `)
           .bind(
             importId,
             DEV_ORG_ID,
@@ -183,22 +224,29 @@ export default {
           .run();
 
         const createdImport =
-          await env.DB.prepare(`
-            SELECT *
-            FROM imports
-            WHERE id = ?
-          `)
+          await env.DB
+            .prepare(`
+              SELECT *
+              FROM imports
+              WHERE id = ?
+            `)
             .bind(importId)
             .first();
 
         return Response.json(
           createdImport,
-          { status: 201 },
+          {
+            status: 201,
+          },
         );
       } catch {
         return Response.json(
-          { error: "Invalid JSON body" },
-          { status: 400 },
+          {
+            error: "Invalid JSON body",
+          },
+          {
+            status: 400,
+          },
         );
       }
     }
@@ -209,12 +257,13 @@ export default {
       request.method === "GET"
     ) {
       const result =
-        await env.DB.prepare(`
-          SELECT *
-          FROM imports
-          WHERE organization_id = ?
-          ORDER BY created_at DESC
-        `)
+        await env.DB
+          .prepare(`
+            SELECT *
+            FROM imports
+            WHERE organization_id = ?
+            ORDER BY created_at DESC
+          `)
           .bind(DEV_ORG_ID)
           .all();
 
@@ -233,15 +282,17 @@ export default {
       importMatch &&
       request.method === "GET"
     ) {
-      const importId = importMatch[1];
+      const importId =
+        importMatch[1];
 
       const item =
-        await env.DB.prepare(`
-          SELECT *
-          FROM imports
-          WHERE id = ?
-            AND organization_id = ?
-        `)
+        await env.DB
+          .prepare(`
+            SELECT *
+            FROM imports
+            WHERE id = ?
+              AND organization_id = ?
+          `)
           .bind(
             importId,
             DEV_ORG_ID,
@@ -250,8 +301,12 @@ export default {
 
       if (!item) {
         return Response.json(
-          { error: "Import not found" },
-          { status: 404 },
+          {
+            error: "Import not found",
+          },
+          {
+            status: 404,
+          },
         );
       }
 
@@ -259,8 +314,12 @@ export default {
     }
 
     return Response.json(
-      { error: "Not Found" },
-      { status: 404 },
+      {
+        error: "Not Found",
+      },
+      {
+        status: 404,
+      },
     );
   },
 } satisfies ExportedHandler<Env>;
