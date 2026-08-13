@@ -1,5 +1,6 @@
 export type CanonicalField =
   | "Company"
+  | "FiscalYear"
   | "CounterpartyId"
   | "CounterpartyName"
   | "Bank"
@@ -8,6 +9,7 @@ export type CanonicalField =
   | "Amount"
   | "DebitCredit"
   | "DocumentNo"
+  | "LineItemNo"
   | "DocumentType"
   | "PostingDate"
   | "DocumentDate"
@@ -28,264 +30,341 @@ export type CanonicalField =
   | "NextPaymentAmount"
   | "MaturityDate";
 
-export const FIELD_ALIASES: Record<CanonicalField, string[]> = {
+export const FIELD_ALIASES: Record<
+  CanonicalField,
+  string[]
+> = {
   Company: [
     "BUKRS",
     "COMPANY",
+    "COMPANYCODE",
     "COMPANY_CODE",
-    "COMPANY CODE",
-    "ENTITY",
-    "LEGAL_ENTITY",
-    "ŞİRKET",
     "SIRKET",
+    "SIRKETKODU",
+  ],
+
+  FiscalYear: [
+    "GJAHR",
+    "FISCALYEAR",
+    "FISCAL_YEAR",
+    "MALIYIL",
+    "MALI_YIL",
   ],
 
   CounterpartyId: [
     "LIFNR",
     "KUNNR",
-    "VENDOR",
-    "VENDOR_ID",
-    "CUSTOMER",
-    "CUSTOMER_ID",
+    "COUNTERPARTYID",
     "COUNTERPARTY_ID",
-    "TEDARIKCI_KODU",
-    "MUSTERI_KODU",
+    "SUPPLIERID",
+    "SUPPLIER_ID",
+    "VENDORID",
+    "VENDOR_ID",
+    "CUSTOMERID",
+    "CUSTOMER_ID",
+    "TEDARIKCIKODU",
+    "MUSTERIKODU",
   ],
 
   CounterpartyName: [
     "NAME1",
-    "VENDOR_NAME",
-    "CUSTOMER_NAME",
     "COUNTERPARTY",
+    "COUNTERPARTYNAME",
     "COUNTERPARTY_NAME",
+    "SUPPLIER",
+    "SUPPLIERNAME",
+    "SUPPLIER_NAME",
+    "VENDOR",
+    "VENDORNAME",
+    "VENDOR_NAME",
+    "CUSTOMER",
+    "CUSTOMERNAME",
+    "CUSTOMER_NAME",
     "TEDARIKCI",
-    "TEDARİKÇİ",
+    "TEDARIKCIADI",
     "MUSTERI",
-    "MÜŞTERİ",
+    "MUSTERIADI",
   ],
 
   Bank: [
     "HBKID",
-    "HOUSE_BANK",
-    "HOUSE BANK",
     "BANK",
-    "BANK_NAME",
+    "BANKID",
+    "BANK_ID",
     "BANKA",
+    "BANKAKODU",
   ],
 
   Account: [
     "HKTID",
     "ACCOUNT",
-    "ACCOUNT_NO",
-    "ACCOUNT_NUMBER",
+    "ACCOUNTID",
+    "ACCOUNT_ID",
+    "BANKACCOUNT",
     "BANK_ACCOUNT",
-    "BANK ACCOUNT",
     "HESAP",
-    "HESAP_NO",
+    "HESAPKODU",
   ],
 
   Currency: [
     "WAERS",
     "CURRENCY",
+    "CURRENCYCODE",
     "CURRENCY_CODE",
     "CCY",
-    "CURR",
-    "DÖVİZ",
     "DOVIZ",
-    "PARA_BIRIMI",
+    "DOVIZCINSI",
+    "PARABIRIMI",
   ],
 
   Amount: [
     "DMBTR",
     "WRBTR",
     "AMOUNT",
-    "LOCAL_AMOUNT",
-    "AMOUNT_IN_LOCAL_CURRENCY",
-    "DOCUMENT_AMOUNT",
-    "VALUE",
+    "AMOUNTLC",
+    "AMOUNT_LC",
     "TUTAR",
+    "TUTARI",
   ],
 
   DebitCredit: [
     "SHKZG",
+    "DEBITCREDIT",
     "DEBIT_CREDIT",
+    "DEBITCREDITINDICATOR",
     "DEBIT_CREDIT_INDICATOR",
-    "DC_INDICATOR",
-    "DR_CR",
+    "BORCALACAK",
   ],
 
   DocumentNo: [
     "BELNR",
+    "DOCUMENTNO",
     "DOCUMENT_NO",
+    "DOCUMENTNUMBER",
     "DOCUMENT_NUMBER",
+    "DOCNO",
     "DOC_NO",
+    "BELGENO",
     "BELGE_NO",
+  ],
+
+  LineItemNo: [
+    "BUZEI",
+    "LINEITEMNO",
+    "LINE_ITEM_NO",
+    "LINEITEMNUMBER",
+    "LINE_ITEM_NUMBER",
+    "ITEMNO",
+    "ITEM_NO",
+    "KALEMNO",
+    "KALEM_NO",
   ],
 
   DocumentType: [
     "BLART",
+    "DOCUMENTTYPE",
     "DOCUMENT_TYPE",
+    "DOCTYPE",
     "DOC_TYPE",
-    "TYPE",
-    "BELGE_TURU",
+    "BELGETURU",
   ],
 
   PostingDate: [
     "BUDAT",
+    "POSTINGDATE",
     "POSTING_DATE",
-    "POSTING DATE",
-    "KAYIT_TARIHI",
+    "KAYITTARIHI",
   ],
 
   DocumentDate: [
     "BLDAT",
+    "DOCUMENTDATE",
     "DOCUMENT_DATE",
-    "DOCUMENT DATE",
-    "BELGE_TARIHI",
+    "BELGETARIHI",
   ],
 
   DueDate: [
     "ZFBDT",
     "FAEDT",
+    "DUEDATE",
     "DUE_DATE",
-    "DUE DATE",
-    "NET_DUE_DATE",
-    "NET DUE DATE",
-    "VADE_TARIHI",
-    "VADE TARİHİ",
+    "VADETARIHI",
+    "VADE",
   ],
 
   ValueDate: [
     "VALUT",
+    "VALUEDATE",
     "VALUE_DATE",
-    "VALUE DATE",
-    "VALÖR",
+    "VALORTARIHI",
     "VALOR",
   ],
 
   Description: [
     "SGTXT",
     "BKTXT",
-    "TEXT",
     "DESCRIPTION",
-    "HEADER_TEXT",
-    "ITEM_TEXT",
-    "AÇIKLAMA",
+    "TEXT",
     "ACIKLAMA",
   ],
 
   Assignment: [
     "ZUONR",
     "ASSIGNMENT",
-    "ASSIGNMENT_NUMBER",
+    "ASSIGNMENTNO",
+    "ASSIGNMENT_NO",
   ],
 
   Reference: [
     "XBLNR",
     "REFERENCE",
+    "REFERENCENO",
     "REFERENCE_NO",
-    "REFERENCE_NUMBER",
     "REFERANS",
+    "REFERANSNO",
   ],
 
   Balance: [
     "BALANCE",
-    "AVAILABLE_BALANCE",
-    "CASH_BALANCE",
-    "BANK_BALANCE",
-    "SALDO",
+    "ENDINGBALANCE",
+    "ENDING_BALANCE",
     "BAKIYE",
   ],
 
   RestrictedAmount: [
+    "RESTRICTEDAMOUNT",
     "RESTRICTED_AMOUNT",
+    "BLOCKEDAMOUNT",
     "BLOCKED_AMOUNT",
-    "RESTRICTED_CASH",
-    "BLOCKED_CASH",
-    "BLOKE_TUTAR",
+    "KISITLITUTAR",
   ],
 
   DebtId: [
+    "DEBTID",
     "DEBT_ID",
+    "LOANID",
     "LOAN_ID",
-    "FACILITY_ID",
+    "CREDITID",
     "CREDIT_ID",
-    "KREDI_NO",
+    "BORCID",
   ],
 
   Lender: [
     "LENDER",
-    "CREDITOR",
-    "FINANCIER",
+    "LENDERNAME",
     "LENDER_NAME",
+    "CREDITOR",
+    "KREDITORKURUM",
   ],
 
   InstrumentType: [
+    "INSTRUMENTTYPE",
     "INSTRUMENT_TYPE",
+    "DEBTTYPE",
+    "DEBT_TYPE",
+    "LOANTYPE",
     "LOAN_TYPE",
-    "FACILITY_TYPE",
-    "BORC_TURU",
+    "URUNTURU",
   ],
 
   OutstandingPrincipal: [
+    "OUTSTANDINGPRINCIPAL",
     "OUTSTANDING_PRINCIPAL",
     "PRINCIPAL",
-    "LOAN_BALANCE",
-    "OUTSTANDING_BALANCE",
-    "KALAN_ANAPARA",
+    "PRINCIPALAMOUNT",
+    "PRINCIPAL_AMOUNT",
     "ANAPARA",
+    "KALANANAPARA",
   ],
 
   InterestType: [
+    "INTERESTTYPE",
     "INTEREST_TYPE",
+    "RATETYPE",
     "RATE_TYPE",
-    "FAIZ_TIPI",
+    "FAIZTURU",
   ],
 
   AnnualInterestRate: [
+    "ANNUALINTERESTRATE",
     "ANNUAL_INTEREST_RATE",
+    "INTERESTRATE",
     "INTEREST_RATE",
     "RATE",
-    "FAIZ_ORANI",
+    "FAIZORANI",
   ],
 
   NextPaymentDate: [
+    "NEXTPAYMENTDATE",
     "NEXT_PAYMENT_DATE",
-    "NEXT_DUE_DATE",
+    "NEXTPAYMENT",
+    "NEXT_PAYMENT",
+    "SONRAKIodemeTARIHI",
     "SONRAKI_ODEME_TARIHI",
   ],
 
   NextPaymentAmount: [
+    "NEXTPAYMENTAMOUNT",
     "NEXT_PAYMENT_AMOUNT",
-    "INSTALLMENT",
+    "INSTALLMENTAMOUNT",
     "INSTALLMENT_AMOUNT",
-    "TAKSIT_TUTARI",
+    "SONRAKIODEMETUTARI",
+    "SONRAKI_ODEME_TUTARI",
   ],
 
   MaturityDate: [
+    "MATURITYDATE",
     "MATURITY_DATE",
-    "LOAN_MATURITY",
-    "END_DATE",
-    "FINAL_MATURITY_DATE",
+    "MATURITY",
+    "VADESONU",
+    "VADESONUTARIHI",
   ],
 };
 
-export function normalizeHeader(value: string): string {
+export function normalizeHeader(
+  value: string,
+): string {
   return value
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .trim()
+    .replace(
+      /[\u0300-\u036f]/g,
+      "",
+    )
     .toUpperCase()
-    .replace(/[^A-Z0-9]/g, "");
+    .replace(
+      /[^A-Z0-9]/g,
+      "",
+    );
 }
 
-const aliasIndex = new Map<string, CanonicalField>();
+const aliasIndex =
+  new Map<
+    string,
+    CanonicalField
+  >();
 
-for (const [canonicalField, aliases] of Object.entries(FIELD_ALIASES)) {
+for (
+  const [
+    canonicalField,
+    aliases,
+  ] of Object.entries(
+    FIELD_ALIASES,
+  ) as [
+    CanonicalField,
+    string[],
+  ][]
+) {
+  aliasIndex.set(
+    normalizeHeader(
+      canonicalField,
+    ),
+    canonicalField,
+  );
+
   for (const alias of aliases) {
     aliasIndex.set(
       normalizeHeader(alias),
-      canonicalField as CanonicalField,
+      canonicalField,
     );
   }
 }
@@ -293,5 +372,11 @@ for (const [canonicalField, aliases] of Object.entries(FIELD_ALIASES)) {
 export function findExactAlias(
   sourceColumn: string,
 ): CanonicalField | null {
-  return aliasIndex.get(normalizeHeader(sourceColumn)) ?? null;
+  return (
+    aliasIndex.get(
+      normalizeHeader(
+        sourceColumn,
+      ),
+    ) ?? null
+  );
 }
