@@ -5,6 +5,8 @@ import { detectColumns } from "./ingestion/detect-columns";
 import { persistAnalysis } from "./ingestion/persist-analysis";
 import { persistQualityIssues } from "./quality/persist-quality";
 import { runDataQuality } from "./quality/run-quality";
+import { reconcileImport } from "./reconciliation/reconcile-import";
+import { persistReconciliation } from "./reconciliation/persist-reconciliation";
 
 const DEV_ORG_ID = "org_demo";
 
@@ -27,7 +29,7 @@ export default {
       return Response.json({
         status: "ok",
         service: "treasury-intelligence-api",
-        version: "0.4.0",
+        version: "0.5.0",
         database: "connected",
       });
     }
@@ -38,7 +40,9 @@ export default {
       request.method === "POST"
     ) {
       const formData = await request.formData();
-      const uploadedFile = formData.get("file");
+
+      const uploadedFile =
+        formData.get("file");
 
       if (!(uploadedFile instanceof File)) {
         return Response.json(
@@ -67,9 +71,11 @@ export default {
         );
       }
 
+      // 1. Read CSV
       const csvText =
         await uploadedFile.text();
 
+      // 2. Parse CSV
       const parsed =
         parseCsvText(csvText);
 
@@ -78,7 +84,8 @@ export default {
           {
             error:
               "CSV could not be parsed",
-            issues: parsed.issues,
+            issues:
+              parsed.issues,
           },
           {
             status: 400,
@@ -86,13 +93,14 @@ export default {
         );
       }
 
-      // 1. Detect source columns
-      const mappings = detectColumns(
-        parsed.headers,
-        parsed.rows,
-      );
+      // 3. Detect and map source columns
+      const mappings =
+        detectColumns(
+          parsed.headers,
+          parsed.rows,
+        );
 
-      // 2. Persist import metadata,
+      // 4. Persist import metadata,
       // source columns and mappings
       const persisted =
         await persistAnalysis(
@@ -100,15 +108,19 @@ export default {
           {
             organizationId:
               DEV_ORG_ID,
+
             fileName:
               uploadedFile.name,
-            sourceType: null,
+
+            sourceType:
+              null,
+
             parsed,
             mappings,
           },
         );
 
-      // 3. Run deterministic
+      // 5. Run deterministic
       // data quality checks
       const quality =
         runDataQuality(
@@ -116,7 +128,7 @@ export default {
           mappings,
         );
 
-      // 4. Persist data quality issues
+      // 6. Persist data quality issues
       const persistedQuality =
         await persistQualityIssues(
           env.DB,
@@ -124,7 +136,7 @@ export default {
           quality,
         );
 
-      // 5. Normalize source rows
+      // 7. Normalize source rows
       // into canonical treasury records
       const canonicalRecords =
         normalizeRecords(
@@ -132,7 +144,7 @@ export default {
           mappings,
         );
 
-      // 6. Persist canonical records
+      // 8. Persist canonical records
       const persistedCanonical =
         await persistCanonicalRecords(
           env.DB,
@@ -140,34 +152,69 @@ export default {
           canonicalRecords,
         );
 
+      // 9. Reconcile source data
+      // against canonical records
+      const reconciliation =
+        reconcileImport(
+          parsed,
+          mappings,
+          canonicalRecords,
+        );
+
+      // 10. Persist reconciliation result
+      const persistedReconciliation =
+        await persistReconciliation(
+          env.DB,
+          persisted.importId,
+          reconciliation,
+        );
+
       return Response.json({
         import: persisted,
 
         quality: {
           ...quality.summary,
+
           persisted:
             persistedQuality,
-          issues: quality.issues,
+
+          issues:
+            quality.issues,
         },
 
         canonical: {
           recordsCreated:
             canonicalRecords.length,
+
           persisted:
             persistedCanonical,
         },
 
+        reconciliation: {
+          ...reconciliation,
+
+          persisted:
+            persistedReconciliation,
+        },
+
         file: {
-          name: uploadedFile.name,
-          size: uploadedFile.size,
-          type: uploadedFile.type,
+          name:
+            uploadedFile.name,
+
+          size:
+            uploadedFile.size,
+
+          type:
+            uploadedFile.type,
         },
 
         dataset: {
           rowCount:
             parsed.rowCount,
+
           columnCount:
             parsed.columnCount,
+
           delimiter:
             parsed.delimiter,
         },
@@ -205,8 +252,7 @@ export default {
       });
     }
 
-    // Ensure demo organization
-    // exists for development
+    // Ensure demo organization exists
     await env.DB
       .prepare(`
         INSERT OR IGNORE INTO organizations (
@@ -313,7 +359,9 @@ export default {
             WHERE organization_id = ?
             ORDER BY created_at DESC
           `)
-          .bind(DEV_ORG_ID)
+          .bind(
+            DEV_ORG_ID,
+          )
           .all();
 
       return Response.json({
@@ -361,7 +409,9 @@ export default {
         );
       }
 
-      return Response.json(item);
+      return Response.json(
+        item,
+      );
     }
 
     // NOT FOUND
