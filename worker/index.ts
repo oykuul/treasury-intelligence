@@ -1,5 +1,6 @@
 import { parseCsvText } from "./ingestion/csv";
 import { detectColumns } from "./ingestion/detect-columns";
+import { persistAnalysis } from "./ingestion/persist-analysis";
 
 const DEV_ORG_ID = "org_demo";
 
@@ -74,7 +75,20 @@ export default {
         parsed.rows,
       );
 
+      const persisted = await persistAnalysis(
+  env.DB,
+  {
+    organizationId: DEV_ORG_ID,
+    fileName: uploadedFile.name,
+    sourceType: null,
+    parsed,
+    mappings,
+  },
+);
+
       return Response.json({
+        import: persisted,
+        
         file: {
           name: uploadedFile.name,
           size: uploadedFile.size,
