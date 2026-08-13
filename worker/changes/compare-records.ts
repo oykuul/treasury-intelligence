@@ -54,13 +54,14 @@ function roundMoney(
 ): number {
   return (
     Math.round(
-      (value + Number.EPSILON) * 100,
+      (value + Number.EPSILON) *
+        100,
     ) / 100
   );
 }
 
 function normalizeKeyPart(
-  value: string | null,
+  value: string | null | undefined,
 ): string {
   return (
     value
@@ -87,19 +88,53 @@ function getStableId(
     ].join("|");
   }
 
+  if (
+    record.documentNo &&
+    record.lineItemNo
+  ) {
+    return [
+      item.datasetType,
+      "SAP_ITEM",
+
+      normalizeKeyPart(
+        record.company,
+      ),
+
+      normalizeKeyPart(
+        record.fiscalYear,
+      ),
+
+      normalizeKeyPart(
+        record.documentNo,
+      ),
+
+      normalizeKeyPart(
+        record.lineItemNo,
+      ),
+    ].join("|");
+  }
+
   if (record.documentNo) {
     return [
       item.datasetType,
       "DOCUMENT",
+
       normalizeKeyPart(
         record.company,
       ),
+
+      normalizeKeyPart(
+        record.fiscalYear,
+      ),
+
       normalizeKeyPart(
         record.documentType,
       ),
+
       normalizeKeyPart(
         record.documentNo,
       ),
+
       normalizeKeyPart(
         record.counterpartyId,
       ),
@@ -110,12 +145,15 @@ function getStableId(
     return [
       item.datasetType,
       "REFERENCE",
+
       normalizeKeyPart(
         record.company,
       ),
+
       normalizeKeyPart(
         record.reference,
       ),
+
       normalizeKeyPart(
         record.counterpartyId,
       ),
@@ -126,12 +164,15 @@ function getStableId(
     return [
       item.datasetType,
       "ASSIGNMENT",
+
       normalizeKeyPart(
         record.company,
       ),
+
       normalizeKeyPart(
         record.assignment,
       ),
+
       normalizeKeyPart(
         record.counterpartyId,
       ),
@@ -141,18 +182,23 @@ function getStableId(
   return [
     item.datasetType,
     "FALLBACK",
+
     normalizeKeyPart(
       record.company,
     ),
+
     normalizeKeyPart(
       record.counterpartyId,
     ),
+
     normalizeKeyPart(
       record.counterpartyName,
     ),
+
     normalizeKeyPart(
       record.currency,
     ),
+
     String(
       record.sourceRowNumber,
     ),
@@ -163,7 +209,8 @@ function getAmount(
   item: ComparedTreasuryRecord,
 ): number | null {
   if (
-    item.datasetType === "debt"
+    item.datasetType ===
+    "debt"
   ) {
     return (
       item.record
@@ -178,7 +225,8 @@ function getDate(
   item: ComparedTreasuryRecord,
 ): string | null {
   if (
-    item.datasetType === "debt"
+    item.datasetType ===
+    "debt"
   ) {
     return (
       item.record
@@ -431,10 +479,8 @@ export function compareRecords(
       );
 
     if (
-      previousAmount !==
-        null &&
-      currentAmount !==
-        null &&
+      previousAmount !== null &&
+      currentAmount !== null &&
       previousAmount !==
         currentAmount
     ) {
@@ -550,8 +596,6 @@ export function compareRecords(
             currentDate,
           ),
 
-        // Date shift changes timing,
-        // not total nominal cash.
         liquidityImpact: 0,
       });
     }
@@ -595,7 +639,6 @@ export function compareRecords(
           ) =>
             total +
             change.liquidityImpact,
-
           0,
         ),
       ),

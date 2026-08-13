@@ -511,3 +511,113 @@ describe(
     );
   },
 );
+
+it(
+  "keeps SAP line items separate when document number is shared",
+  () => {
+    const previous: ComparedTreasuryRecord[] = [
+      {
+        datasetType: "payables",
+
+        record: createRecord({
+          sourceRowNumber: 2,
+
+          fiscalYear: "2026",
+          documentNo: "190001",
+          lineItemNo: "001",
+
+          counterpartyId: "V10001",
+          amount: 250000,
+          dueDate: "2026-08-20",
+        }),
+      },
+
+      {
+        datasetType: "payables",
+
+        record: createRecord({
+          sourceRowNumber: 3,
+
+          fiscalYear: "2026",
+          documentNo: "190001",
+          lineItemNo: "002",
+
+          counterpartyId: "V10001",
+          amount: 50000,
+          dueDate: "2026-08-20",
+        }),
+      },
+    ];
+
+    const current: ComparedTreasuryRecord[] = [
+      {
+        datasetType: "payables",
+
+        record: createRecord({
+          sourceRowNumber: 500,
+
+          fiscalYear: "2026",
+          documentNo: "190001",
+          lineItemNo: "001",
+
+          counterpartyId: "V10001",
+          amount: 275000,
+          dueDate: "2026-08-20",
+        }),
+      },
+
+      {
+        datasetType: "payables",
+
+        record: createRecord({
+          sourceRowNumber: 501,
+
+          fiscalYear: "2026",
+          documentNo: "190001",
+          lineItemNo: "002",
+
+          counterpartyId: "V10001",
+          amount: 50000,
+          dueDate: "2026-08-20",
+        }),
+      },
+    ];
+
+    const result =
+      compareRecords(
+        previous,
+        current,
+      );
+
+    expect(
+      result.summary,
+    ).toMatchObject({
+      amountChanges: 1,
+      newItems: 0,
+      removedItems: 0,
+      totalChanges: 1,
+      totalLiquidityImpact: -25000,
+    });
+
+    expect(
+      result.changes[0],
+    ).toMatchObject({
+      changeType: "AMOUNT_CHANGED",
+
+      documentNo: "190001",
+
+      previousAmount: 250000,
+      currentAmount: 275000,
+
+      amountDelta: 25000,
+
+      liquidityImpact: -25000,
+    });
+
+    expect(
+      result.changes[0].stableId,
+    ).toContain(
+      "SAP_ITEM|1000|2026|190001|001",
+    );
+  },
+);

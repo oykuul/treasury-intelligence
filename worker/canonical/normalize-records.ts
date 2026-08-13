@@ -7,6 +7,9 @@ export type CanonicalTreasuryRecord = {
 
   company: string | null;
 
+  fiscalYear?: string | null;
+  lineItemNo?: string | null;
+
   counterpartyId: string | null;
   counterpartyName: string | null;
 
@@ -47,17 +50,25 @@ export type CanonicalTreasuryRecord = {
 
 const STRING_FIELDS = new Set<CanonicalField>([
   "Company",
+  "FiscalYear",
+
   "CounterpartyId",
   "CounterpartyName",
+
   "Bank",
   "Account",
+
   "Currency",
   "DebitCredit",
+
   "DocumentNo",
+  "LineItemNo",
   "DocumentType",
+
   "Description",
   "Assignment",
   "Reference",
+
   "DebtId",
   "Lender",
   "InstrumentType",
@@ -178,7 +189,11 @@ function normalizeDate(
   }
 
   const parsed = new Date(
-    Date.UTC(year, month - 1, day),
+    Date.UTC(
+      year,
+      month - 1,
+      day,
+    ),
   );
 
   if (
@@ -208,9 +223,10 @@ function buildSourceIndex(
       continue;
     }
 
-    // Review veya unmatched alanları kullanıcı
-    // onayı olmadan treasury engine'e sokmuyoruz.
-    if (mapping.status !== "auto_matched") {
+    if (
+      mapping.status !==
+      "auto_matched"
+    ) {
       continue;
     }
 
@@ -223,7 +239,11 @@ function buildSourceIndex(
       continue;
     }
 
-    if (!result.has(mapping.canonicalField)) {
+    if (
+      !result.has(
+        mapping.canonicalField,
+      )
+    ) {
       result.set(
         mapping.canonicalField,
         columnIndex,
@@ -236,10 +256,14 @@ function buildSourceIndex(
 
 function getRawValue(
   row: string[],
-  sourceIndex: Map<CanonicalField, number>,
+  sourceIndex: Map<
+    CanonicalField,
+    number
+  >,
   field: CanonicalField,
 ): string {
-  const index = sourceIndex.get(field);
+  const index =
+    sourceIndex.get(field);
 
   if (index === undefined) {
     return "";
@@ -250,7 +274,10 @@ function getRawValue(
 
 function getString(
   row: string[],
-  sourceIndex: Map<CanonicalField, number>,
+  sourceIndex: Map<
+    CanonicalField,
+    number
+  >,
   field: CanonicalField,
 ): string | null {
   if (!STRING_FIELDS.has(field)) {
@@ -268,7 +295,10 @@ function getString(
 
 function getNumber(
   row: string[],
-  sourceIndex: Map<CanonicalField, number>,
+  sourceIndex: Map<
+    CanonicalField,
+    number
+  >,
   field: CanonicalField,
 ): number | null {
   if (!NUMBER_FIELDS.has(field)) {
@@ -286,7 +316,10 @@ function getNumber(
 
 function getDate(
   row: string[],
-  sourceIndex: Map<CanonicalField, number>,
+  sourceIndex: Map<
+    CanonicalField,
+    number
+  >,
   field: CanonicalField,
 ): string | null {
   if (!DATE_FIELDS.has(field)) {
@@ -305,7 +338,10 @@ function getDate(
 function normalizeRecord(
   row: string[],
   sourceRowNumber: number,
-  sourceIndex: Map<CanonicalField, number>,
+  sourceIndex: Map<
+    CanonicalField,
+    number
+  >,
 ): CanonicalTreasuryRecord {
   return {
     sourceRowNumber,
@@ -314,6 +350,18 @@ function normalizeRecord(
       row,
       sourceIndex,
       "Company",
+    ),
+
+    fiscalYear: getString(
+      row,
+      sourceIndex,
+      "FiscalYear",
+    ),
+
+    lineItemNo: getString(
+      row,
+      sourceIndex,
+      "LineItemNo",
     ),
 
     counterpartyId: getString(
@@ -442,11 +490,12 @@ function normalizeRecord(
       "InstrumentType",
     ),
 
-    outstandingPrincipal: getNumber(
-      row,
-      sourceIndex,
-      "OutstandingPrincipal",
-    ),
+    outstandingPrincipal:
+      getNumber(
+        row,
+        sourceIndex,
+        "OutstandingPrincipal",
+      ),
 
     interestType: getString(
       row,
@@ -454,11 +503,12 @@ function normalizeRecord(
       "InterestType",
     ),
 
-    annualInterestRate: getNumber(
-      row,
-      sourceIndex,
-      "AnnualInterestRate",
-    ),
+    annualInterestRate:
+      getNumber(
+        row,
+        sourceIndex,
+        "AnnualInterestRate",
+      ),
 
     nextPaymentDate: getDate(
       row,
@@ -466,11 +516,12 @@ function normalizeRecord(
       "NextPaymentDate",
     ),
 
-    nextPaymentAmount: getNumber(
-      row,
-      sourceIndex,
-      "NextPaymentAmount",
-    ),
+    nextPaymentAmount:
+      getNumber(
+        row,
+        sourceIndex,
+        "NextPaymentAmount",
+      ),
 
     maturityDate: getDate(
       row,
