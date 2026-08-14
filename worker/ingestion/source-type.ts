@@ -22,7 +22,7 @@ export type SourceTypeValidationResult =
     };
 
 export function parseSourceType(
-  value: FormDataEntryValue | null,
+  value: unknown,
 ): SourceTypeValidationResult {
   if (
     typeof value !== "string"
