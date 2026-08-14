@@ -27,6 +27,9 @@ import type {
   GapDrivers,
   InterestRateRisk,
   MaturityGap,
+  PolicyLimitCheck,
+  PolicyLimitId,
+  PolicyLimits,
   StressScenario,
   TreasuryAnalysisResponse,
   UploadState,
@@ -679,6 +682,61 @@ function FundingPlanPanel({ plan }: { plan: FundingPlan }) {
   </section>;
 }
 
+const POLICY_LIMIT_LABELS: Record<PolicyLimitId, string> = {
+  LIQUIDITY_BUFFER: "Likidite tamponu",
+  FACILITY_UTILIZATION: "Limit kullanımı",
+  LENDER_CONCENTRATION: "Lender yoğunlaşması",
+  FLOATING_RATE_SHARE: "Değişken faiz payı",
+  REFINANCING_COVERAGE: "12A refinansman kapsamı",
+  EXTERNAL_FUNDING_NEED: "Dış finansman ihtiyacı",
+};
+
+const POLICY_LIMIT_ACTIONS: Record<PolicyLimitId, string> = {
+  LIQUIDITY_BUFFER: "Nakit koruma ve limit rezervasyonu planını devreye al.",
+  FACILITY_UTILIZATION: "Yeni taahhütlü kapasite ekle veya kullanımı azalt.",
+  LENDER_CONCENTRATION: "Alternatif lender kapasitesi oluştur.",
+  FLOATING_RATE_SHARE: "Yeni fonlamada sabit faiz payını artır.",
+  REFINANCING_COVERAGE: "Vadesi gelen borç için refinansman kapasitesini kesinleştir.",
+  EXTERNAL_FUNDING_NEED: "İlk ihtiyaç tarihinden önce vadeli fonlama onayı al.",
+};
+
+function formatPolicyValue(
+  check: PolicyLimitCheck,
+  currency: string,
+): string {
+  return check.unit === "PERCENT"
+    ? `%${check.actualValue.toFixed(1)}`
+    : formatMoney(check.actualValue, currency);
+}
+
+function formatPolicyLimit(
+  check: PolicyLimitCheck,
+  currency: string,
+): string {
+  const operator = check.operator === "MINIMUM" ? "≥" : "≤";
+  const value = check.unit === "PERCENT"
+    ? `%${check.limitValue.toFixed(1)}`
+    : formatMoney(check.limitValue, currency);
+  return `${operator} ${value}`;
+}
+
+function PolicyLimitsPanel({ limits }: { limits: PolicyLimits }) {
+  return <section className="panel policy-limits-panel" id="policy-limits">
+    <div className="section-heading">
+      <div><span className="eyebrow">ALCO risk iştahı</span><h2>Covenant &amp; Policy Limits</h2><p>Mevcut ALM verisiyle ölçülebilen likidite, fonlama, yoğunlaşma ve faiz limitleri</p></div>
+      <span className={`policy-overall status-${limits.overallStatus.toLowerCase()}`}>{limits.overallStatus === "COMPLIANT" ? "Limitler içinde" : limits.overallStatus === "WATCH" ? "Yakın izleme" : `${limits.counts.BREACH} limit ihlali`}</span>
+    </div>
+    <div className="policy-summary">
+      <MetricCard label="Toplam kontrol" value={String(limits.checks.length)} />
+      <MetricCard label="Limit içinde" value={String(limits.counts.PASS)} tone="positive" />
+      <MetricCard label="Yakın izleme" value={String(limits.counts.WATCH)} tone="warning" />
+      <MetricCard label="Limit ihlali" value={String(limits.counts.BREACH)} tone={limits.counts.BREACH > 0 ? "negative" : "positive"} />
+    </div>
+    <div className="table-scroll policy-table-wrap"><table className="policy-table"><thead><tr><th>Politika limiti</th><th>Gerçekleşen</th><th>Limit</th><th>Headroom</th><th>Durum</th><th>Yönetim aksiyonu</th></tr></thead><tbody>{limits.checks.map((check) => <tr className={`policy-row status-${check.status.toLowerCase()}`} key={check.id}><td><strong>{POLICY_LIMIT_LABELS[check.id]}</strong><small>{check.category}</small></td><td>{formatPolicyValue(check, limits.currency)}</td><td>{formatPolicyLimit(check, limits.currency)}</td><td className={check.headroom < 0 ? "negative-value" : "positive-value"}>{check.unit === "PERCENT" ? `${check.headroom.toFixed(1)} puan` : formatMoney(check.headroom, limits.currency)}</td><td><span className="policy-status">{check.status === "PASS" ? "Uygun" : check.status === "WATCH" ? "İzle" : "İhlal"}</span></td><td>{check.status === "PASS" ? "Aksiyon gerekmiyor." : POLICY_LIMIT_ACTIONS[check.id]}</td></tr>)}</tbody></table></div>
+    <p className="policy-scope-note">Net Borç/FAVÖK ve faiz karşılama gibi finansal covenant'lar, bilanço ve gelir tablosu verisi bağlandığında bu kapsama eklenecek.</p>
+  </section>;
+}
+
 function ChangesPanel({ response }: { response: TreasuryAnalysisResponse }) {
   const changes = response.changes;
   return <section className="panel changes-panel" id="what-changed">
@@ -724,7 +782,7 @@ function CommandKpi({ label, value, detail, tone }: {
 
 function ExecutiveOverviewPanel({ response }: { response: TreasuryAnalysisResponse }) {
   const { analysis } = response;
-  const { executiveOverview: overview, metrics, maturityGap, debtFunding, interestRateRisk, fundingPlan, stress } = analysis;
+  const { executiveOverview: overview, metrics, maturityGap, debtFunding, interestRateRisk, fundingPlan, policyLimits, stress } = analysis;
   const plusTwoHundred = interestRateRisk.sensitivityScenarios.find((scenario) => scenario.shockBps === 200);
   const headline = overview.status === "CRITICAL"
     ? "Acil ALM aksiyonu gerekiyor."
@@ -762,13 +820,14 @@ function ExecutiveOverviewPanel({ response }: { response: TreasuryAnalysisRespon
       <article className="command-panel command-stress"><header><div><span>90 günlük dayanım</span><h3>Stres Matrisi</h3></div></header><div className="command-table"><div className="command-table-head"><span>Senaryo</span><span>Minimum nakit</span><span>Fonlama</span><span>İhlal</span></div>{stress.scenarios.map((scenario) => <div className={`command-table-row command-scenario-${scenario.name.toLowerCase()}`} key={scenario.name}><strong><i />{scenario.label}</strong><span className={scenario.minimumLiquidity < 0 ? "risk" : "safe"}>{formatMoney(scenario.minimumLiquidity, analysis.currency)}</span><span>{formatMoney(scenario.fundingNeed, analysis.currency)}</span><span>{scenario.firstThresholdBreachDate ? formatDate(scenario.firstThresholdBreachDate) : "—"}</span></div>)}</div></article>
       <article className="command-panel command-lenders"><header><div><span>Fonlama kaynakları</span><h3>Lender Yoğunlaşması</h3></div><strong className={debtFunding.top3LenderConcentration > 70 ? "warning" : "safe"}>%{debtFunding.top3LenderConcentration.toFixed(1)}</strong></header>{lenders.map((lender) => <div className="command-lender-row" key={lender.lender}><div><strong>{lender.lender}</strong><small>{formatMoney(lender.debtOutstanding, analysis.currency)} borç · {formatMoney(lender.availableFacilities, analysis.currency)} boş limit</small></div><span><i style={{ width: `${Math.min(100, lender.sharePercent)}%` }} /></span><b>%{lender.sharePercent.toFixed(1)}</b></div>)}</article>
     </div>
+    <article className="command-policy"><header><div><span>ALCO risk iştahı</span><h3>Policy Limit Monitor</h3></div><strong className={policyLimits.counts.BREACH > 0 ? "risk" : policyLimits.counts.WATCH > 0 ? "warning" : "safe"}>{policyLimits.counts.BREACH > 0 ? `${policyLimits.counts.BREACH} ihlal` : policyLimits.counts.WATCH > 0 ? `${policyLimits.counts.WATCH} izleme` : "Limitler içinde"}</strong></header><div className="command-policy-grid">{policyLimits.checks.map((check) => <a className={`command-policy-check status-${check.status.toLowerCase()}`} href="#policy-limits" key={check.id}><span>{POLICY_LIMIT_LABELS[check.id]}</span><strong>{formatPolicyValue(check, policyLimits.currency)}</strong><small>Limit {formatPolicyLimit(check, policyLimits.currency)}</small></a>)}</div></article>
     {overview.dataQualityFindings > 0 && <p className="command-data-note">Veri kapsamı: {overview.dataQualityFindings} bulgu açıklanmayı bekliyor. Veri &amp; Girdiler barından kaynak kayıtları güncelleyebilirsiniz.</p>}
   </section>;
 }
 
 function Dashboard({ response, selectedDate, refreshingGap, onDateSelect }: { response: TreasuryAnalysisResponse; selectedDate: string; refreshingGap: boolean; onDateSelect: (date: string) => void }) {
   const { analysis } = response;
-  const { stress, gapDrivers, maturityGap, debtFunding, interestRateRisk, fundingPlan } = analysis;
+  const { stress, gapDrivers, maturityGap, debtFunding, interestRateRisk, fundingPlan, policyLimits } = analysis;
   return <>
     <ExecutiveOverviewPanel response={response} />
     <section className="detail-heading" id="detail-analyses"><div><span className="eyebrow">Analitik çalışma alanı</span><h2>Detay Analizler</h2></div><p>Yönetim özetindeki risk ve aksiyonların hesaplama katmanları</p></section>
@@ -782,6 +841,7 @@ function Dashboard({ response, selectedDate, refreshingGap, onDateSelect }: { re
     <DebtFundingPanel funding={debtFunding} />
     <InterestRateRiskPanel risk={interestRateRisk} />
     <FundingPlanPanel plan={fundingPlan} />
+    <PolicyLimitsPanel limits={policyLimits} />
     <GapDriverPanel gap={gapDrivers} />
     <ChangesPanel response={response} />
   </>;

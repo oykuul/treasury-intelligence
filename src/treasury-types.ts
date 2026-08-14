@@ -370,6 +370,48 @@ export type FundingPlan = {
   actions: FundingPlanAction[];
 };
 
+export type PolicyLimitId =
+  | "LIQUIDITY_BUFFER"
+  | "FACILITY_UTILIZATION"
+  | "LENDER_CONCENTRATION"
+  | "FLOATING_RATE_SHARE"
+  | "REFINANCING_COVERAGE"
+  | "EXTERNAL_FUNDING_NEED";
+
+export type PolicyLimitStatus = "PASS" | "WATCH" | "BREACH";
+
+export type PolicyLimitCheck = {
+  id: PolicyLimitId;
+  category: "LIQUIDITY" | "FUNDING" | "CONCENTRATION" | "RATE";
+  label: string;
+  status: PolicyLimitStatus;
+  operator: "MINIMUM" | "MAXIMUM";
+  unit: "AMOUNT" | "PERCENT";
+  actualValue: number;
+  limitValue: number;
+  headroom: number;
+  reason: string;
+  action: string;
+};
+
+export type PolicyLimits = {
+  currency: string;
+  asOfDate: string;
+  overallStatus: "COMPLIANT" | "WATCH" | "BREACH";
+  counts: Record<PolicyLimitStatus, number>;
+  thresholds: {
+    minimumLiquidityBuffer: number;
+    maximumFacilityUtilizationPercent: number;
+    maximumTop3LenderConcentrationPercent: number;
+    maximumFloatingRateSharePercent: number;
+    minimumFacilityCoverage12MPercent: number;
+    maximumExternalFundingNeed: number;
+  };
+  checks: PolicyLimitCheck[];
+  breachedLimitIds: PolicyLimitId[];
+  watchLimitIds: PolicyLimitId[];
+};
+
 export type NormalizedInterestType =
   | "FIXED"
   | "FLOATING"
@@ -566,6 +608,7 @@ export type TreasuryAnalysis = {
   debtFunding: DebtFunding;
   interestRateRisk: InterestRateRisk;
   fundingPlan: FundingPlan;
+  policyLimits: PolicyLimits;
   executiveOverview: AlmExecutiveOverview;
 };
 
