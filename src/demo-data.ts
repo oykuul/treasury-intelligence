@@ -1,4 +1,5 @@
 import type {
+  FundingMaturityBucket,
   MaturityGapBucket,
   StressCurvePoint,
   StressScenario,
@@ -19,6 +20,30 @@ function addDays(
   )
     .toISOString()
     .slice(0, 10);
+}
+
+function addMonths(
+  date: string,
+  months: number,
+): string {
+  const value = new Date(`${date}T00:00:00Z`);
+  const day = value.getUTCDate();
+  const target = new Date(
+    Date.UTC(
+      value.getUTCFullYear(),
+      value.getUTCMonth() + months,
+      1,
+    ),
+  );
+  const lastDay = new Date(
+    Date.UTC(
+      target.getUTCFullYear(),
+      target.getUTCMonth() + 1,
+      0,
+    ),
+  ).getUTCDate();
+  target.setUTCDate(Math.min(day, lastDay));
+  return target.toISOString().slice(0, 10);
 }
 
 function buildCurve(
@@ -324,6 +349,72 @@ const demoMaturityBuckets:
       },
     );
 
+const demoFundingAmounts = [
+  10_000_000,
+  35_000_000,
+  55_000_000,
+  25_000_000,
+  60_000_000,
+  40_000_000,
+  35_000_000,
+  30_000_000,
+  20_000_000,
+  35_000_000,
+  20_000_000,
+  15_000_000,
+  10_000_000,
+  30_000_000,
+];
+
+const demoFundingBuckets:
+  FundingMaturityBucket[] =
+    demoFundingAmounts.map(
+      (
+        maturingDebt,
+        index,
+      ): FundingMaturityBucket => ({
+        id:
+          index === 0
+            ? "overdue"
+            : index === 13
+              ? "over36m"
+              : `Q${index}`,
+        label:
+          index === 0
+            ? "Vadesi geçmiş"
+            : index === 13
+              ? ">36 ay"
+              : `${(index - 1) * 3}–${index * 3} ay`,
+        startDate:
+          index === 0
+            ? null
+            : addMonths(
+                "2026-08-14",
+                index === 13
+                  ? 36
+                  : (index - 1) * 3,
+              ),
+        endDate:
+          index === 0
+            ? "2026-08-13"
+            : index === 13
+              ? null
+              : addDays(
+                  addMonths(
+                    "2026-08-14",
+                    index * 3,
+                  ),
+                  -1,
+                ),
+        maturingDebt,
+        sharePercent:
+          maturingDebt /
+          420_000_000 *
+          100,
+        instruments: [],
+      }),
+    );
+
 export const DEMO_RESPONSE:
   TreasuryAnalysisResponse = {
     imports: {
@@ -562,6 +653,88 @@ export const DEMO_RESPONSE:
           13_600_000,
         buckets:
           demoMaturityBuckets,
+        ignoredItems: [],
+      },
+
+      debtFunding: {
+        currency: "TRY",
+        asOfDate: "2026-08-14",
+        horizonEndDate:
+          "2029-08-14",
+        debtOutstanding: 420_000_000,
+        debtDue12M: 185_000_000,
+        debtDue24M: 310_000_000,
+        debtDue36M: 390_000_000,
+        committedFacilities:
+          180_000_000,
+        drawnFacilities: 110_000_000,
+        availableFacilities: 70_000_000,
+        facilityUtilizationPercent: 61.1,
+        facilityCoverage12MPercent: 37.8,
+        refinancingNeed12M: 115_000_000,
+        largestMaturityWall: 60_000_000,
+        largestMaturityWallBucketId: "Q4",
+        top3LenderConcentration: 75.5,
+        maturityBuckets:
+          demoFundingBuckets,
+        lenders: [
+          {
+            lender: "Anadolu Bankası",
+            debtOutstanding: 120_000_000,
+            committedFacilities: 50_000_000,
+            drawnFacilities: 30_000_000,
+            availableFacilities: 20_000_000,
+            fundingCapacity: 140_000_000,
+            sharePercent: 28.6,
+            debtCount: 3,
+            facilityCount: 1,
+          },
+          {
+            lender: "Kuzey Bank",
+            debtOutstanding: 105_000_000,
+            committedFacilities: 40_000_000,
+            drawnFacilities: 25_000_000,
+            availableFacilities: 15_000_000,
+            fundingCapacity: 120_000_000,
+            sharePercent: 24.5,
+            debtCount: 2,
+            facilityCount: 1,
+          },
+          {
+            lender: "Birlik Finans",
+            debtOutstanding: 90_000_000,
+            committedFacilities: 50_000_000,
+            drawnFacilities: 30_000_000,
+            availableFacilities: 20_000_000,
+            fundingCapacity: 110_000_000,
+            sharePercent: 22.4,
+            debtCount: 2,
+            facilityCount: 1,
+          },
+          {
+            lender: "Garanti BBVA",
+            debtOutstanding: 60_000_000,
+            committedFacilities: 40_000_000,
+            drawnFacilities: 25_000_000,
+            availableFacilities: 15_000_000,
+            fundingCapacity: 75_000_000,
+            sharePercent: 15.3,
+            debtCount: 1,
+            facilityCount: 1,
+          },
+          {
+            lender: "Diğer",
+            debtOutstanding: 45_000_000,
+            committedFacilities: 0,
+            drawnFacilities: 0,
+            availableFacilities: 0,
+            fundingCapacity: 45_000_000,
+            sharePercent: 9.2,
+            debtCount: 2,
+            facilityCount: 0,
+          },
+        ],
+        instruments: [],
         ignoredItems: [],
       },
     },

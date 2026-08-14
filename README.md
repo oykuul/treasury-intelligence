@@ -1,6 +1,6 @@
 # Corporate ALM Intelligence
 
-Corporate ALM Intelligence turns treasury and balance-sheet source data into deterministic liquidity, maturity-gap, funding, and interest-rate-risk decisions for finance teams. The current application delivers the 90-day liquidity and 12-month contractual maturity-gap layers.
+Corporate ALM Intelligence turns treasury and balance-sheet source data into deterministic liquidity, maturity-gap, funding, and interest-rate-risk decisions for finance teams. The current application delivers the 90-day liquidity, 12-month contractual maturity-gap, and 36-month debt-and-funding layers.
 
 ## Current product scope
 
@@ -27,6 +27,8 @@ For an end-to-end local test, use **Örnek CSV’lerle çalıştır**. It upload
 The **Nakit ve kredi limitleri** panel supports persisted manual ALM positions. Cash entries automatically populate opening liquidity; undrawn committed facilities populate available facilities. This also allows a flat liquidity analysis to run before receivable, payable, or debt files are uploaded.
 
 Every treasury analysis response also includes `analysis.maturityGap`. It assigns overdue items plus the following 365 days to deterministic maturity buckets, separates contractual assets and liabilities, calculates net and cumulative gap, and shows the residual funding need after available committed facilities. Drawn manual facilities enter the liability ladder at maturity; matching debt and facility references are de-duplicated.
+
+`analysis.debtFunding` builds a 36-month quarterly debt wall from outstanding principal and drawn facilities. It calculates debt due within 12/24/36 months, residual 12-month refinancing need after undrawn facilities, facility utilization, the largest maturity wall, and lender concentration. Debt and facility references are de-duplicated before funded debt is totaled.
 
 ## Local commands
 
@@ -101,6 +103,8 @@ The response contains:
 - `analysis.verdict`
 - `analysis.stress`
 - `analysis.gapDrivers`
+- `analysis.maturityGap`
+- `analysis.debtFunding`
 
 `gapTargetDate` is optional. If omitted, Gap Drivers automatically explains the minimum-liquidity date.
 

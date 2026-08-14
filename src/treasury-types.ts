@@ -251,6 +251,71 @@ export type MaturityGap = {
   }[];
 };
 
+export type FundingInstrument = {
+  sourceType: "debt" | "facility";
+  lender: string;
+  referenceId: string;
+  currency: string;
+  outstandingAmount: number;
+  maturityDate: string;
+  interestType: string | null;
+  annualInterestRate: number | null;
+  bucketId: string;
+};
+
+export type FundingMaturityBucket = {
+  id: string;
+  label: string;
+  startDate: string | null;
+  endDate: string | null;
+  maturingDebt: number;
+  sharePercent: number;
+  instruments: FundingInstrument[];
+};
+
+export type LenderExposure = {
+  lender: string;
+  debtOutstanding: number;
+  committedFacilities: number;
+  drawnFacilities: number;
+  availableFacilities: number;
+  fundingCapacity: number;
+  sharePercent: number;
+  debtCount: number;
+  facilityCount: number;
+};
+
+export type DebtFunding = {
+  currency: string;
+  asOfDate: string;
+  horizonEndDate: string;
+  debtOutstanding: number;
+  debtDue12M: number;
+  debtDue24M: number;
+  debtDue36M: number;
+  committedFacilities: number;
+  drawnFacilities: number;
+  availableFacilities: number;
+  facilityUtilizationPercent: number;
+  facilityCoverage12MPercent: number;
+  refinancingNeed12M: number;
+  largestMaturityWall: number;
+  largestMaturityWallBucketId: string | null;
+  top3LenderConcentration: number;
+  maturityBuckets: FundingMaturityBucket[];
+  lenders: LenderExposure[];
+  instruments: FundingInstrument[];
+  ignoredItems: {
+    sourceType: "debt" | "facility";
+    referenceId: string | null;
+    reason:
+      | "CURRENCY_MISMATCH"
+      | "MISSING_MATURITY"
+      | "MISSING_OUTSTANDING"
+      | "DUPLICATE_DEBT_REFERENCE";
+  }[];
+};
+
 export type TreasuryChange = {
   stableId: string;
   changeType:
@@ -316,6 +381,7 @@ export type TreasuryAnalysis = {
   stress: StressComparison;
   gapDrivers: GapDrivers;
   maturityGap: MaturityGap;
+  debtFunding: DebtFunding;
 };
 
 export type TreasuryAnalysisResponse = {
