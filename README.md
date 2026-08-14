@@ -1,6 +1,6 @@
-# Treasury Intelligence
+# Corporate ALM Intelligence
 
-Treasury Intelligence turns treasury source files into a deterministic 90-day liquidity view for finance teams.
+Corporate ALM Intelligence turns treasury and balance-sheet source data into deterministic liquidity, maturity-gap, funding, and interest-rate-risk decisions for finance teams. The current application delivers the first product layer: the 90-day liquidity module.
 
 ## Current product scope
 

@@ -3,7 +3,7 @@
 
 .sidebar {
   position: fixed; inset: 0 auto 0 0; width: 238px; z-index: 20;
-  display: flex; flex-direction: column; padding: 27px 16px 20px;
+  display: flex; flex-direction: column; padding: 27px 16px 20px; overflow-y: auto;
   color: #aebbc3; background: var(--navy);
 }
 .brand { display: flex; align-items: center; gap: 11px; padding: 0 10px 29px; text-decoration: none; color: white; font-family: Manrope, sans-serif; font-size: 14px; letter-spacing: -.3px; }
@@ -12,6 +12,8 @@
 .brand-mark i { width: 4px; display: block; border-radius: 3px; background: white; }
 .brand-mark i:nth-child(1) { height: 8px; opacity: .7; }.brand-mark i:nth-child(2) { height: 14px; }.brand-mark i:nth-child(3) { height: 11px; opacity: .85; }
 .sidebar nav { display: grid; gap: 5px; }
+.sidebar nav .nav-label { padding: 13px 13px 4px; color: #58727f; font-size: 8px; font-weight: 700; letter-spacing: 1.15px; text-transform: uppercase; }.sidebar nav .nav-label:first-child { padding-top: 0; }.sidebar nav .nav-label-next { margin-top: 8px; padding-top: 13px; border-top: 1px solid rgba(255,255,255,.07); }
+.nav-placeholder { min-height: 35px; display: flex; align-items: center; gap: 12px; padding: 0 13px; color: #66808c; font-size: 11px; font-weight: 600; }.nav-placeholder .icon { width: 17px; }.nav-placeholder small { margin-left: auto; padding: 2px 4px; border-radius: 3px; color: #5d8e7d; background: rgba(47,195,145,.07); font-size: 7px; letter-spacing: .5px; text-transform: uppercase; }
 .sidebar nav a, .sidebar-foot a { display: flex; align-items: center; gap: 12px; min-height: 43px; padding: 0 13px; border-radius: 8px; text-decoration: none; font-size: 13px; font-weight: 600; transition: .18s ease; }
 .sidebar nav a:hover, .sidebar-foot a:hover { color: white; background: rgba(255,255,255,.05); }
 .sidebar nav a.active { color: white; background: var(--navy-soft); box-shadow: inset 3px 0 #2fc391; }
@@ -24,6 +26,7 @@ main { margin-left: 238px; width: calc(100% - 238px); min-height: 100vh; padding
 .topbar { display: flex; justify-content: space-between; align-items: center; gap: 24px; margin: 0 auto 24px; max-width: 1440px; }
 .eyebrow { display: block; color: #708087; font-size: 10px; font-weight: 700; letter-spacing: 1.7px; text-transform: uppercase; margin-bottom: 5px; }
 .topbar h1 { margin: 0; font: 700 clamp(24px, 2.4vw, 34px)/1.15 Manrope, sans-serif; letter-spacing: -1.3px; color: #142330; }
+.module-badge { display: inline-flex; margin-top: 7px; padding: 4px 7px; border-radius: 4px; color: var(--green-dark); background: var(--green-soft); font-size: 8px; font-weight: 700; letter-spacing: .4px; text-transform: uppercase; }
 .report-context { display: flex; align-items: center; gap: 9px; }
 .report-context > span { min-height: 34px; display: inline-flex; align-items: center; gap: 7px; padding: 0 12px; background: #fff; border: 1px solid var(--line); border-radius: 7px; font-size: 12px; font-weight: 600; color: #53636b; }
 .report-context .icon { width: 15px; }
@@ -113,7 +116,7 @@ footer { max-width: 1440px; display: flex; justify-content: space-between; margi
 @media (max-width: 860px) {
   .sidebar { position: sticky; top: 0; width: 100%; height: 58px; padding: 9px 15px; flex-direction: row; align-items: center; box-shadow: 0 5px 18px rgba(13,29,42,.15); }
   .brand { padding: 0; }.brand strong { display: inline; margin-left: 2px; }.brand-mark { width: 31px; height: 31px; }
-  .sidebar nav { display: flex; margin-left: auto; }.sidebar nav a { min-height: 38px; padding: 0 10px; }.sidebar nav a .icon { margin: 0; }.sidebar nav a { font-size: 0; }.sidebar nav a.active { box-shadow: inset 0 -2px #2fc391; }
+  .sidebar nav { display: flex; margin-left: auto; }.sidebar nav a { min-height: 38px; padding: 0 10px; }.sidebar nav a .icon { margin: 0; }.sidebar nav a { font-size: 0; }.sidebar nav a.active { box-shadow: inset 0 -2px #2fc391; }.sidebar nav .nav-label,.sidebar nav .nav-placeholder { display: none; }
   .sidebar-foot { display: none; }
   main { margin-left: 0; width: 100%; padding: 23px 18px 18px; }
   .topbar { align-items: flex-end; }.topbar h1 { font-size: 25px; }.report-context > span:not(.currency-badge):not(.demo-badge) { display: none; }
