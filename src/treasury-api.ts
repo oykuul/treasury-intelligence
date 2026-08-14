@@ -1,4 +1,7 @@
 import type {
+  AlmPosition,
+  AlmPositionInput,
+  AlmPositionsResponse,
   DatasetType,
   ImportAnalysisResponse,
   TreasuryAnalysisRequest,
@@ -58,4 +61,52 @@ export async function analyzeTreasury(
   );
 
   return readResponse<TreasuryAnalysisResponse>(response);
+}
+
+export async function listAlmPositions(
+  currency: string,
+): Promise<AlmPositionsResponse> {
+  const response = await fetch(
+    `/api/alm/positions?currency=${encodeURIComponent(currency)}`,
+  );
+
+  return readResponse<AlmPositionsResponse>(response);
+}
+
+export async function createAlmPosition(
+  input: AlmPositionInput,
+): Promise<AlmPosition> {
+  const response = await fetch(
+    "/api/alm/positions",
+    {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify(input),
+    },
+  );
+
+  return readResponse<AlmPosition>(response);
+}
+
+export async function deleteAlmPosition(
+  positionId: string,
+): Promise<void> {
+  const response = await fetch(
+    `/api/alm/positions/${encodeURIComponent(positionId)}`,
+    {
+      method: "DELETE",
+    },
+  );
+
+  if (!response.ok) {
+    const body =
+      (await response.json()) as
+        ApiError;
+    throw new Error(
+      body.error ??
+        "ALM position could not be deleted.",
+    );
+  }
 }

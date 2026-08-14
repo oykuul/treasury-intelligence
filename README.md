@@ -24,6 +24,8 @@ The cockpit opens with the data importer. Upload one or more current-period CSVs
 
 For an end-to-end local test, use **Örnek CSV’lerle çalıştır**. It uploads the six files under `public/samples` through the real ingestion API (current and previous `payables`, `receivables`, and `debt`) and then runs the complete treasury analysis. Apply the local D1 migrations first.
 
+The **Nakit ve kredi limitleri** panel supports persisted manual ALM positions. Cash entries automatically populate opening liquidity; undrawn committed facilities populate available facilities. This also allows a flat liquidity analysis to run before receivable, payable, or debt files are uploaded.
+
 ## Local commands
 
 ```bash
@@ -41,6 +43,25 @@ npx wrangler d1 migrations apply treasury-intelligence-db --local
 ```
 
 ## API flow
+
+### Manual ALM positions
+
+```bash
+curl -s -X POST http://localhost:5173/api/alm/positions \
+  -H "content-type: application/json" \
+  -d '{
+    "positionType": "cash",
+    "entity": "1000",
+    "counterpartyName": "Demo Bank",
+    "referenceId": "TR-001",
+    "currency": "TRY",
+    "asOfDate": "2026-08-14",
+    "availableAmount": 25000000,
+    "restrictedAmount": 2000000
+  }'
+```
+
+Use `GET /api/alm/positions?currency=TRY` for the position list and liquidity summary. Credit-facility entries use `positionType: "facility"`, `committedAmount`, and `drawnAmount`; the API derives the available amount.
 
 ### 1. Upload each current source dataset
 
