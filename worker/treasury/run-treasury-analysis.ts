@@ -29,6 +29,10 @@ import {
   buildDebtFunding,
   type DebtFundingResult,
 } from "../alm/build-debt-funding";
+import {
+  buildInterestRateRisk,
+  type InterestRateRiskResult,
+} from "../alm/build-interest-rate-risk";
 import type {
   AlmPosition,
 } from "../alm/positions";
@@ -63,6 +67,7 @@ export type TreasuryAnalysisResult = {
   gapDrivers: GapDriversResult;
   maturityGap: MaturityGapResult;
   debtFunding: DebtFundingResult;
+  interestRateRisk: InterestRateRiskResult;
 };
 
 function parseIsoDate(
@@ -287,6 +292,21 @@ export function runTreasuryAnalysis(
         input.asOfDate,
     });
 
+  const interestRateRisk =
+    buildInterestRateRisk({
+      datasets:
+        input.datasets,
+
+      positions:
+        input.positions,
+
+      currency:
+        input.currency,
+
+      asOfDate:
+        input.asOfDate,
+    });
+
   return {
     currency:
       forecast.currency,
@@ -303,5 +323,6 @@ export function runTreasuryAnalysis(
     gapDrivers,
     maturityGap,
     debtFunding,
+    interestRateRisk,
   };
 }

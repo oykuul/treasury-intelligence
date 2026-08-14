@@ -316,6 +316,89 @@ export type DebtFunding = {
   }[];
 };
 
+export type NormalizedInterestType =
+  | "FIXED"
+  | "FLOATING"
+  | "UNKNOWN";
+
+export type InterestRateInstrument = {
+  sourceType: "debt" | "facility";
+  lender: string;
+  referenceId: string;
+  currency: string;
+  outstandingAmount: number;
+  interestType: string | null;
+  normalizedInterestType: NormalizedInterestType;
+  annualInterestRate: number | null;
+  annualInterestExpense: number;
+  maturityDate: string | null;
+  repricingBucketId: string | null;
+};
+
+export type RepricingBucket = {
+  id: string;
+  label: string;
+  startDate: string | null;
+  endDate: string | null;
+  floatingAmount: number;
+  fixedRefinancingAmount: number;
+  repricingAmount: number;
+  instruments: InterestRateInstrument[];
+};
+
+export type InterestRateSensitivity = {
+  shockBps: 100 | 200 | 300;
+  annualizedInterestIncrease: number;
+  shockedAnnualInterestExpense: number;
+  effectiveWeightedAverageRatePercent: number;
+};
+
+export type LenderInterestRateExposure = {
+  lender: string;
+  totalDebt: number;
+  fixedRateDebt: number;
+  floatingRateDebt: number;
+  repricingExposure12M: number;
+  annualInterestExpense: number;
+  rateCoveragePercent: number;
+  instrumentCount: number;
+};
+
+export type InterestRateRisk = {
+  currency: string;
+  asOfDate: string;
+  horizonEndDate: string;
+  totalInterestBearingDebt: number;
+  fixedRateDebt: number;
+  floatingRateDebt: number;
+  unclassifiedRateDebt: number;
+  fixedRateSharePercent: number;
+  floatingRateSharePercent: number;
+  knownRateDebt: number;
+  rateCoveragePercent: number;
+  weightedAverageRatePercent: number;
+  currentAnnualInterestExpense: number;
+  floatingExposure: number;
+  fixedRefinancingExposure12M: number;
+  repricingExposure12M: number;
+  repricingGap12M: number;
+  sensitivityScenarios: InterestRateSensitivity[];
+  repricingBuckets: RepricingBucket[];
+  lenders: LenderInterestRateExposure[];
+  instruments: InterestRateInstrument[];
+  dataIssues: {
+    sourceType: "debt" | "facility";
+    referenceId: string | null;
+    reason:
+      | "CURRENCY_MISMATCH"
+      | "MISSING_OUTSTANDING"
+      | "MISSING_INTEREST_TYPE"
+      | "MISSING_INTEREST_RATE"
+      | "MISSING_MATURITY"
+      | "DUPLICATE_DEBT_REFERENCE";
+  }[];
+};
+
 export type TreasuryChange = {
   stableId: string;
   changeType:
@@ -382,6 +465,7 @@ export type TreasuryAnalysis = {
   gapDrivers: GapDrivers;
   maturityGap: MaturityGap;
   debtFunding: DebtFunding;
+  interestRateRisk: InterestRateRisk;
 };
 
 export type TreasuryAnalysisResponse = {

@@ -1,6 +1,7 @@
 import type {
   FundingMaturityBucket,
   MaturityGapBucket,
+  RepricingBucket,
   StressCurvePoint,
   StressScenario,
   TreasuryAnalysisResponse,
@@ -415,6 +416,71 @@ const demoFundingBuckets:
       }),
     );
 
+const demoRepricingValues = [
+  {
+    floatingAmount: 130_000_000,
+    fixedRefinancingAmount: 20_000_000,
+  },
+  {
+    floatingAmount: 0,
+    fixedRefinancingAmount: 15_000_000,
+  },
+  {
+    floatingAmount: 0,
+    fixedRefinancingAmount: 10_000_000,
+  },
+  {
+    floatingAmount: 0,
+    fixedRefinancingAmount: 10_000_000,
+  },
+  {
+    floatingAmount: 0,
+    fixedRefinancingAmount: 215_000_000,
+  },
+];
+
+const demoRepricingBuckets:
+  RepricingBucket[] =
+    demoRepricingValues.map(
+      (
+        {
+          floatingAmount,
+          fixedRefinancingAmount,
+        },
+        index,
+      ): RepricingBucket => ({
+        id:
+          index === 4
+            ? "over12m"
+            : `Q${index + 1}`,
+        label:
+          index === 4
+            ? ">12 ay"
+            : `${index * 3}–${(index + 1) * 3} ay`,
+        startDate:
+          addMonths(
+            "2026-08-14",
+            index * 3,
+          ),
+        endDate:
+          index === 4
+            ? null
+            : addDays(
+                addMonths(
+                  "2026-08-14",
+                  (index + 1) * 3,
+                ),
+                -1,
+              ),
+        floatingAmount,
+        fixedRefinancingAmount,
+        repricingAmount:
+          floatingAmount +
+          fixedRefinancingAmount,
+        instruments: [],
+      }),
+    );
+
 export const DEMO_RESPONSE:
   TreasuryAnalysisResponse = {
     imports: {
@@ -736,6 +802,107 @@ export const DEMO_RESPONSE:
         ],
         instruments: [],
         ignoredItems: [],
+      },
+
+      interestRateRisk: {
+        currency: "TRY",
+        asOfDate: "2026-08-14",
+        horizonEndDate: "2027-08-14",
+        totalInterestBearingDebt: 420_000_000,
+        fixedRateDebt: 270_000_000,
+        floatingRateDebt: 130_000_000,
+        unclassifiedRateDebt: 20_000_000,
+        fixedRateSharePercent: 64.3,
+        floatingRateSharePercent: 31,
+        knownRateDebt: 400_000_000,
+        rateCoveragePercent: 95.2,
+        weightedAverageRatePercent: 28.4,
+        currentAnnualInterestExpense: 113_600_000,
+        floatingExposure: 130_000_000,
+        fixedRefinancingExposure12M: 55_000_000,
+        repricingExposure12M: 185_000_000,
+        repricingGap12M: -185_000_000,
+        sensitivityScenarios: [
+          {
+            shockBps: 100,
+            annualizedInterestIncrease: 1_850_000,
+            shockedAnnualInterestExpense: 115_450_000,
+            effectiveWeightedAverageRatePercent: 27.49,
+          },
+          {
+            shockBps: 200,
+            annualizedInterestIncrease: 3_700_000,
+            shockedAnnualInterestExpense: 117_300_000,
+            effectiveWeightedAverageRatePercent: 27.93,
+          },
+          {
+            shockBps: 300,
+            annualizedInterestIncrease: 5_550_000,
+            shockedAnnualInterestExpense: 119_150_000,
+            effectiveWeightedAverageRatePercent: 28.37,
+          },
+        ],
+        repricingBuckets: demoRepricingBuckets,
+        lenders: [
+          {
+            lender: "Anadolu Bankası",
+            totalDebt: 120_000_000,
+            fixedRateDebt: 48_000_000,
+            floatingRateDebt: 72_000_000,
+            repricingExposure12M: 87_000_000,
+            annualInterestExpense: 34_400_000,
+            rateCoveragePercent: 100,
+            instrumentCount: 3,
+          },
+          {
+            lender: "Kuzey Bank",
+            totalDebt: 105_000_000,
+            fixedRateDebt: 75_000_000,
+            floatingRateDebt: 30_000_000,
+            repricingExposure12M: 50_000_000,
+            annualInterestExpense: 29_800_000,
+            rateCoveragePercent: 100,
+            instrumentCount: 2,
+          },
+          {
+            lender: "Garanti BBVA",
+            totalDebt: 60_000_000,
+            fixedRateDebt: 35_000_000,
+            floatingRateDebt: 25_000_000,
+            repricingExposure12M: 25_000_000,
+            annualInterestExpense: 17_100_000,
+            rateCoveragePercent: 100,
+            instrumentCount: 1,
+          },
+          {
+            lender: "Birlik Finans",
+            totalDebt: 90_000_000,
+            fixedRateDebt: 90_000_000,
+            floatingRateDebt: 0,
+            repricingExposure12M: 20_000_000,
+            annualInterestExpense: 24_700_000,
+            rateCoveragePercent: 100,
+            instrumentCount: 2,
+          },
+          {
+            lender: "Diğer",
+            totalDebt: 45_000_000,
+            fixedRateDebt: 22_000_000,
+            floatingRateDebt: 3_000_000,
+            repricingExposure12M: 3_000_000,
+            annualInterestExpense: 7_600_000,
+            rateCoveragePercent: 55.6,
+            instrumentCount: 2,
+          },
+        ],
+        instruments: [],
+        dataIssues: [
+          {
+            sourceType: "debt",
+            referenceId: "DEMO-UNKNOWN-RATE",
+            reason: "MISSING_INTEREST_TYPE",
+          },
+        ],
       },
     },
 

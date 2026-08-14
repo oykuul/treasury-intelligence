@@ -182,6 +182,10 @@ describe(
         expect(
           result.debtFunding.debtOutstanding,
         ).toBe(0);
+
+        expect(
+          result.interestRateRisk.totalInterestBearingDebt,
+        ).toBe(0);
       },
     );
 
