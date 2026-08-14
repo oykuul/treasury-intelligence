@@ -25,6 +25,19 @@ import type {
 
 const DATASETS: DatasetType[] = ["payables", "receivables", "debt"];
 
+const SAMPLE_IMPORTS: {
+  period: UploadPeriod;
+  dataset: DatasetType;
+  path: string;
+}[] = [
+  { period: "current", dataset: "payables", path: "/samples/current-payables.csv" },
+  { period: "current", dataset: "receivables", path: "/samples/current-receivables.csv" },
+  { period: "current", dataset: "debt", path: "/samples/current-debt.csv" },
+  { period: "previous", dataset: "payables", path: "/samples/previous-payables.csv" },
+  { period: "previous", dataset: "receivables", path: "/samples/previous-receivables.csv" },
+  { period: "previous", dataset: "debt", path: "/samples/previous-debt.csv" },
+];
+
 const DATASET_LABELS: Record<DatasetType, string> = {
   payables: "Borçlar",
   receivables: "Alacaklar",
@@ -160,7 +173,7 @@ function ImportSlot({ dataset, period, state, onFile }: {
   </div>;
 }
 
-function Importer({ uploads, expanded, parameters, running, error, onToggle, onFile, onParameter, onAnalyze, onDemo }: {
+function Importer({ uploads, expanded, parameters, running, error, onToggle, onFile, onParameter, onAnalyze, onSamples, onDemo }: {
   uploads: UploadGroups;
   expanded: boolean;
   parameters: AnalysisParameters;
@@ -170,6 +183,7 @@ function Importer({ uploads, expanded, parameters, running, error, onToggle, onF
   onFile: (period: UploadPeriod, dataset: DatasetType, file: File) => void;
   onParameter: (key: keyof AnalysisParameters, value: string) => void;
   onAnalyze: () => void;
+  onSamples: () => void;
   onDemo: () => void;
 }) {
   const currentCount = DATASETS.filter((dataset) => uploads.current[dataset].importId).length;
@@ -197,6 +211,7 @@ function Importer({ uploads, expanded, parameters, running, error, onToggle, onF
       {error && <p className="analysis-error">{error}</p>}
       <div className="import-actions">
         <button className="button-secondary" onClick={onDemo}><Icon name="spark" /> Demo veriyi yükle</button>
+        <button className="button-secondary sample-button" onClick={onSamples} disabled={running}><Icon name="upload" /> Örnek CSV’lerle çalıştır</button>
         <button className="button-primary" onClick={onAnalyze} disabled={running}>{running ? "Analiz hazırlanıyor…" : "CFO analizini çalıştır"}</button>
       </div>
     </div>}
@@ -366,6 +381,39 @@ function App() {
   function loadDemo() {
     setResponse(DEMO_RESPONSE); setDemoMode(true); setSelectedDate(DEMO_RESPONSE.analysis.gapDrivers.targetDate); setAnalysisError(null); setImporterExpanded(false);
   }
+  async function loadSamples() {
+    setRunning(true); setAnalysisError(null); setDemoMode(false);
+    setUploads(() => {
+      const next = makeUploadGroups();
+      for (const sample of SAMPLE_IMPORTS) {
+        next[sample.period][sample.dataset] = { ...EMPTY_UPLOAD, status: "uploading", fileName: sample.path.split("/").at(-1) ?? null };
+      }
+      return next;
+    });
+    try {
+      const imported = await Promise.all(SAMPLE_IMPORTS.map(async (sample) => {
+        const fileResponse = await fetch(sample.path);
+        if (!fileResponse.ok) throw new Error(`${sample.path} örnek dosyası alınamadı.`);
+        const fileName = sample.path.split("/").at(-1) ?? `${sample.dataset}.csv`;
+        const file = new File([await fileResponse.blob()], fileName, { type: "text/csv" });
+        const result = await analyzeImport(file, sample.dataset);
+        return { ...sample, fileName, result };
+      }));
+      const nextUploads = makeUploadGroups();
+      for (const item of imported) {
+        nextUploads[item.period][item.dataset] = { status: "ready", fileName: item.fileName, importId: item.result.import.importId, result: item.result, error: null };
+      }
+      const sampleCurrentIds = imported.filter((item) => item.period === "current").map((item) => item.result.import.importId);
+      const samplePreviousIds = imported.filter((item) => item.period === "previous").map((item) => item.result.import.importId);
+      const nextResponse = await analyzeTreasury({ ...parameters, importIds: sampleCurrentIds, previousImportIds: samplePreviousIds });
+      setUploads(nextUploads); setResponse(nextResponse); setSelectedDate(nextResponse.analysis.gapDrivers.targetDate); setImporterExpanded(false);
+    } catch (error) {
+      setAnalysisError(error instanceof Error ? error.message : "Örnek dosyalar analiz edilemedi.");
+      setImporterExpanded(true);
+    } finally {
+      setRunning(false);
+    }
+  }
   async function selectGapDate(date: string) {
     if (!date || date === selectedDate) return;
     setSelectedDate(date);
@@ -389,7 +437,7 @@ function App() {
     </aside>
     <main id="top">
       <header className="topbar"><div><span className="eyebrow">CFO LIQUIDITY COCKPIT</span><h1>Treasury Intelligence</h1></div><div className="report-context">{demoMode && <span className="demo-badge">DEMO</span>}<span><Icon name="calendar" />{response ? formatDate(response.analysis.asOfDate) : formatDate(parameters.asOfDate)}</span><span className="currency-badge">{response?.analysis.currency ?? parameters.currency}</span></div></header>
-      <Importer uploads={uploads} expanded={importerExpanded} parameters={parameters} running={running} error={analysisError} onToggle={() => setImporterExpanded((value) => !value)} onFile={handleFile} onParameter={handleParameter} onAnalyze={() => void runAnalysis()} onDemo={loadDemo} />
+      <Importer uploads={uploads} expanded={importerExpanded} parameters={parameters} running={running} error={analysisError} onToggle={() => setImporterExpanded((value) => !value)} onFile={handleFile} onParameter={handleParameter} onAnalyze={() => void runAnalysis()} onSamples={() => void loadSamples()} onDemo={loadDemo} />
       {response ? <Dashboard response={response} selectedDate={selectedDate} refreshingGap={refreshingGap} onDateSelect={(date) => void selectGapDate(date)} /> : <section className="welcome-state"><span className="welcome-icon"><Icon name="pulse" /></span><span className="eyebrow">ANALİZE HAZIR</span><h2>Likidite görünümünüzü tek ekranda yönetin</h2><p>CSV dosyalarınızı yükleyin veya CFO cockpit deneyimini görmek için demo veriyi açın.</p><button className="button-primary" onClick={loadDemo}><Icon name="spark" /> Demo cockpit’i aç</button></section>}
       <footer><span>Treasury Intelligence · Deterministic CFO analytics</span><span>Forecast horizon: 90 days</span></footer>
     </main>

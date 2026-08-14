@@ -69,6 +69,7 @@ main { margin-left: 238px; width: calc(100% - 238px); min-height: 100vh; padding
 .button-primary,.button-secondary { min-height: 37px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 0 16px; border-radius: 7px; font-size: 11px; font-weight: 700; }
 .button-primary { border: 1px solid #0a7b59; color: white; background: linear-gradient(#18a779,#0c8963); box-shadow: 0 4px 12px rgba(12,137,99,.16); }.button-primary:hover { background: #087956; }
 .button-secondary { border: 1px solid #d4dcda; color: #475961; background: white; }.button-secondary:hover { background: #f5f8f6; }.button-primary .icon,.button-secondary .icon { width: 16px; }
+.button-secondary.sample-button { color: var(--green-dark); border-color: #bfe2d3; background: var(--green-soft); }.button-secondary.sample-button:hover { background: #d9f1e7; }
 
 .metrics-grid { max-width: 1440px; margin: 0 auto 12px; display: grid; grid-template-columns: repeat(7,1fr); gap: 9px; }
 .metric-card { position: relative; min-width: 0; min-height: 97px; padding: 14px 13px 11px; overflow: hidden; background: white; border: 1px solid var(--line); border-radius: 9px; }
