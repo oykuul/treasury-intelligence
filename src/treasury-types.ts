@@ -316,6 +316,60 @@ export type DebtFunding = {
   }[];
 };
 
+export type FundingPlanStatus =
+  | "FUNDED"
+  | "FACILITY_DRAW_REQUIRED"
+  | "EXTERNAL_FUNDING_REQUIRED";
+
+export type FundingPlanBucket = {
+  bucketId: string;
+  label: string;
+  startDate: string | null;
+  endDate: string | null;
+  contractualLiquidity: number;
+  targetLiquidity: number;
+  incrementalFacilityDraw: number;
+  cumulativeFacilityDraw: number;
+  incrementalExternalFunding: number;
+  cumulativeExternalFunding: number;
+  liquidityAfterPlan: number;
+  facilityHeadroomRemaining: number;
+};
+
+export type FundingPlanActionType =
+  | "RAISE_EXTERNAL_FUNDING"
+  | "RESERVE_COMMITTED_FACILITIES"
+  | "REFINANCE_MATURITY_WALL"
+  | "DIVERSIFY_LENDERS";
+
+export type FundingPlanAction = {
+  priority: number;
+  actionType: FundingPlanActionType;
+  severity: "WATCH" | "ACTION_REQUIRED" | "CRITICAL";
+  amount: number | null;
+  dueDate: string | null;
+  bucketId: string | null;
+  reason: string;
+};
+
+export type FundingPlan = {
+  currency: string;
+  asOfDate: string;
+  horizonEndDate: string;
+  status: FundingPlanStatus;
+  policyBuffer: number;
+  availableFacilities: number;
+  totalFundingRequirement: number;
+  plannedFacilityDraw: number;
+  externalFundingNeed: number;
+  firstActionDate: string | null;
+  firstExternalFundingDate: string | null;
+  peakFundingBucketId: string | null;
+  minimumLiquidityAfterPlan: number;
+  buckets: FundingPlanBucket[];
+  actions: FundingPlanAction[];
+};
+
 export type NormalizedInterestType =
   | "FIXED"
   | "FLOATING"
@@ -511,6 +565,7 @@ export type TreasuryAnalysis = {
   maturityGap: MaturityGap;
   debtFunding: DebtFunding;
   interestRateRisk: InterestRateRisk;
+  fundingPlan: FundingPlan;
   executiveOverview: AlmExecutiveOverview;
 };
 

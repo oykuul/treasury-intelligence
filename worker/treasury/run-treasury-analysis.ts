@@ -37,6 +37,10 @@ import {
   buildAlmExecutiveOverview,
   type AlmExecutiveOverviewResult,
 } from "../alm/build-executive-overview";
+import {
+  buildFundingPlan,
+  type FundingPlanResult,
+} from "../alm/build-funding-plan";
 import type {
   AlmPosition,
 } from "../alm/positions";
@@ -72,6 +76,7 @@ export type TreasuryAnalysisResult = {
   maturityGap: MaturityGapResult;
   debtFunding: DebtFundingResult;
   interestRateRisk: InterestRateRiskResult;
+  fundingPlan: FundingPlanResult;
   executiveOverview: AlmExecutiveOverviewResult;
 };
 
@@ -312,6 +317,14 @@ export function runTreasuryAnalysis(
         input.asOfDate,
     });
 
+  const fundingPlan =
+    buildFundingPlan({
+      maturityGap,
+      debtFunding,
+      minimumLiquidityBuffer:
+        input.minimumLiquidityBuffer,
+    });
+
   const executiveOverview =
     buildAlmExecutiveOverview({
       currency:
@@ -351,6 +364,7 @@ export function runTreasuryAnalysis(
     maturityGap,
     debtFunding,
     interestRateRisk,
+    fundingPlan,
     executiveOverview,
   };
 }
