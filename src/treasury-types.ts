@@ -193,6 +193,64 @@ export type GapDrivers = {
   totalGrossFlow: number;
 };
 
+export type MaturityGapSource =
+  | DatasetType
+  | "facility";
+
+export type MaturityGapFlow = {
+  sourceType: MaturityGapSource;
+  direction: "ASSET" | "LIABILITY";
+  component:
+    | "contractual"
+    | "next_payment"
+    | "principal"
+    | "maturity"
+    | "drawn_facility";
+  date: string;
+  currency: string;
+  amount: number;
+  counterpartyName: string | null;
+  referenceId: string | null;
+};
+
+export type MaturityGapBucket = {
+  id: string;
+  label: string;
+  startDate: string | null;
+  endDate: string | null;
+  assets: number;
+  liabilities: number;
+  netGap: number;
+  cumulativeGap: number;
+  flows: MaturityGapFlow[];
+};
+
+export type MaturityGap = {
+  currency: string;
+  asOfDate: string;
+  horizonEndDate: string;
+  openingLiquidity: number;
+  availableFacilities: number;
+  totalAssets12M: number;
+  totalLiabilities12M: number;
+  netGap12M: number;
+  closingCumulativeGap12M: number;
+  minimumCumulativeGap12M: number;
+  minimumBucketId: string | null;
+  fundingNeedBeforeFacilities: number;
+  residualFundingNeed: number;
+  buckets: MaturityGapBucket[];
+  ignoredItems: {
+    sourceType: MaturityGapSource;
+    referenceId: string | null;
+    reason:
+      | "CURRENCY_MISMATCH"
+      | "MISSING_DATE"
+      | "MISSING_AMOUNT"
+      | "DUPLICATE_DEBT_REFERENCE";
+  }[];
+};
+
 export type TreasuryChange = {
   stableId: string;
   changeType:
@@ -257,6 +315,7 @@ export type TreasuryAnalysis = {
   verdict: CfoVerdict;
   stress: StressComparison;
   gapDrivers: GapDrivers;
+  maturityGap: MaturityGap;
 };
 
 export type TreasuryAnalysisResponse = {

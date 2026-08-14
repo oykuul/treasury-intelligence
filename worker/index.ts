@@ -60,7 +60,7 @@ export default {
       return Response.json({
         status: "ok",
         service: "treasury-intelligence-api",
-        version: "0.7.0",
+        version: "0.8.0",
         database: "connected",
       });
     }
@@ -614,6 +614,11 @@ export default {
           );
         }
 
+        const analysisCurrency =
+          body.currency;
+        const analysisAsOfDate =
+          body.asOfDate;
+
         const datasets =
           body.importIds.length === 0
             ? []
@@ -623,21 +628,72 @@ export default {
                 body.importIds,
               );
 
+        const allPositions =
+          await listAlmPositions(
+            env.DB,
+            DEV_ORG_ID,
+          );
+        const eligiblePositions =
+          allPositions.filter(
+            (position) =>
+              position.currency
+                .trim()
+                .toUpperCase() ===
+                analysisCurrency
+                  .trim()
+                  .toUpperCase() &&
+              position.asOfDate <=
+                analysisAsOfDate,
+          );
+        const latestPositionDate =
+          eligiblePositions.reduce(
+            (latest, position) =>
+              position.asOfDate > latest
+                ? position.asOfDate
+                : latest,
+            "",
+          );
+        const positions =
+          latestPositionDate
+            ? eligiblePositions.filter(
+                (position) =>
+                  position.asOfDate ===
+                  latestPositionDate,
+              )
+            : [];
+        const positionSummary =
+          summarizeAlmPositions(
+            positions,
+            analysisCurrency,
+          );
+        const hasManualPositions =
+          positions.length > 0;
+        const openingLiquidity =
+          hasManualPositions
+            ? positionSummary.availableCash
+            : body.openingLiquidity;
+        const availableFacilities =
+          hasManualPositions
+            ? positionSummary.availableFacilities
+            : body.unusedCommittedFacilities;
+
         const analysis =
           runTreasuryAnalysis({
             datasets,
 
+            positions,
+
             currency:
-              body.currency,
+              analysisCurrency,
 
             asOfDate:
-              body.asOfDate,
+              analysisAsOfDate,
 
             openingLiquidity:
-              body.openingLiquidity,
+              openingLiquidity,
 
             unusedCommittedFacilities:
-              body.unusedCommittedFacilities,
+              availableFacilities,
 
             minimumLiquidityBuffer:
               body.minimumLiquidityBuffer,
@@ -681,7 +737,7 @@ export default {
                 previousDatasets,
 
               currency:
-                body.currency,
+                analysisCurrency,
 
               openingLiquidity:
                 body.previousOpeningLiquidity ??

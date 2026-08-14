@@ -21,6 +21,7 @@ import type {
   CfoMetrics,
   DatasetType,
   GapDrivers,
+  MaturityGap,
   StressScenario,
   TreasuryAnalysisResponse,
   UploadState,
@@ -303,6 +304,127 @@ function GapDriverPanel({ gap }: { gap: GapDrivers }) {
   </section>;
 }
 
+function MaturityGapChart({
+  gap,
+}: {
+  gap: MaturityGap;
+}) {
+  const buckets = gap.buckets;
+  const width = 1180;
+  const height = 310;
+  const plot = {
+    left: 72,
+    right: 22,
+    top: 24,
+    bottom: 58,
+  };
+  const values = buckets.flatMap(
+    (bucket) => [
+      bucket.assets,
+      -bucket.liabilities,
+      bucket.cumulativeGap,
+    ],
+  );
+  const maxAbsolute = Math.max(
+    ...values.map((value) =>
+      Math.abs(value),
+    ),
+    1,
+  );
+  const chartMaximum =
+    maxAbsolute * 1.12;
+  const chartHeight =
+    height - plot.top - plot.bottom;
+  const y = (value: number) =>
+    plot.top +
+    (
+      (chartMaximum - value) /
+      (chartMaximum * 2)
+    ) *
+      chartHeight;
+  const zeroY = y(0);
+  const columnWidth =
+    (
+      width -
+      plot.left -
+      plot.right
+    ) /
+    buckets.length;
+  const x = (index: number) =>
+    plot.left +
+    columnWidth *
+      (index + 0.5);
+  const cumulativePath =
+    buckets
+      .map(
+        (bucket, index) =>
+          `${index === 0 ? "M" : "L"}${x(index)},${y(bucket.cumulativeGap)}`,
+      )
+      .join(" ");
+  const tickValues = [
+    chartMaximum,
+    0,
+    -chartMaximum,
+  ];
+
+  return <div className="maturity-chart-wrap">
+    <svg className="maturity-chart" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Vade kovalarına göre varlık, yükümlülük ve kümülatif gap grafiği">
+      {tickValues.map((tick) => <g key={tick}>
+        <line x1={plot.left} x2={width - plot.right} y1={y(tick)} y2={y(tick)} className={tick === 0 ? "maturity-zero" : "grid-line"} />
+        <text x={plot.left - 12} y={y(tick) + 4} textAnchor="end" className="axis-label">{formatMoney(tick, gap.currency)}</text>
+      </g>)}
+      {buckets.map((bucket, index) => {
+        const center = x(index);
+        const barWidth = Math.min(18, columnWidth * .28);
+        return <g key={bucket.id}>
+          <rect className="maturity-asset-bar" x={center - barWidth - 1} y={y(bucket.assets)} width={barWidth} height={Math.max(0, zeroY - y(bucket.assets))} rx="2" />
+          <rect className="maturity-liability-bar" x={center + 1} y={zeroY} width={barWidth} height={Math.max(0, y(-bucket.liabilities) - zeroY)} rx="2" />
+          <text x={center} y={height - 28} textAnchor="middle" className="maturity-bucket-label">{bucket.id === "overdue" ? "Geçmiş" : bucket.id === "over12m" ? ">12A" : bucket.id}</text>
+        </g>;
+      })}
+      <path d={cumulativePath} className="maturity-cumulative-line" />
+      {buckets.map((bucket, index) => <circle key={`gap-${bucket.id}`} cx={x(index)} cy={y(bucket.cumulativeGap)} r="3" className={bucket.cumulativeGap < 0 ? "maturity-gap-point negative" : "maturity-gap-point"} />)}
+    </svg>
+  </div>;
+}
+
+function MaturityGapPanel({
+  gap,
+}: {
+  gap: MaturityGap;
+}) {
+  const minimumBucket =
+    gap.buckets.find(
+      (bucket) =>
+        bucket.id ===
+        gap.minimumBucketId,
+    );
+  const statusSentence =
+    gap.residualFundingNeed > 0
+      ? `Kullanılabilir limitlerden sonra ${formatMoney(gap.residualFundingNeed, gap.currency)} karşılanmamış 12 aylık fonlama ihtiyacı kalıyor.`
+      : "Taahhütlü limitler, 12 aylık minimum kümülatif açığı tamamen karşılıyor.";
+
+  return <section className="panel maturity-panel" id="maturity-gap">
+    <div className="section-heading">
+      <div><span className="eyebrow">12 aylık sözleşmesel görünüm</span><h2>Maturity Gap</h2><p>Alacak, ticari borç, borç servisi ve kullanılan kredi vadelerinin aynı merdivende karşılaştırılması</p></div>
+      <div className="legend maturity-legend"><span><i className="legend-asset" />Varlık</span><span><i className="legend-liability" />Yükümlülük</span><span><i className="legend-cumulative" />Kümülatif gap</span></div>
+    </div>
+    <div className="maturity-summary">
+      <MetricCard label="12A sözleşmesel varlık" value={formatMoney(gap.totalAssets12M, gap.currency)} tone="positive" />
+      <MetricCard label="12A sözleşmesel yükümlülük" value={formatMoney(gap.totalLiabilities12M, gap.currency)} tone="negative" />
+      <MetricCard label="Minimum kümülatif gap" value={formatMoney(gap.minimumCumulativeGap12M, gap.currency)} detail={minimumBucket?.label ?? "Açılış"} tone={gap.minimumCumulativeGap12M < 0 ? "negative" : "positive"} />
+      <MetricCard label="Limit sonrası açık" value={formatMoney(gap.residualFundingNeed, gap.currency)} tone={gap.residualFundingNeed > 0 ? "negative" : "positive"} />
+    </div>
+    <div className={`maturity-status ${gap.residualFundingNeed > 0 ? "status-negative" : "status-positive"}`}><strong>{gap.residualFundingNeed > 0 ? "Fonlama aksiyonu gerekli" : "Limit kapsamı yeterli"}</strong><span>{statusSentence}</span></div>
+    <MaturityGapChart gap={gap} />
+    <div className="table-scroll maturity-table-wrap"><table className="maturity-table">
+      <thead><tr><th>Vade kovası</th><th>Başlangıç</th><th>Bitiş</th><th>Varlık</th><th>Yükümlülük</th><th>Net gap</th><th>Kümülatif gap</th></tr></thead>
+      <tbody>{gap.buckets.map((bucket) => <tr key={bucket.id}><td><strong>{bucket.label}</strong><small>{bucket.flows.length} hareket</small></td><td>{formatDate(bucket.startDate)}</td><td>{formatDate(bucket.endDate)}</td><td className="positive-value">{formatMoney(bucket.assets, gap.currency)}</td><td className="negative-value">{formatMoney(bucket.liabilities, gap.currency)}</td><td className={bucket.netGap < 0 ? "negative-value" : "positive-value"}>{formatMoney(bucket.netGap, gap.currency)}</td><td className={bucket.cumulativeGap < 0 ? "negative-value" : "positive-value"}>{formatMoney(bucket.cumulativeGap, gap.currency)}</td></tr>)}</tbody>
+    </table></div>
+    {gap.ignoredItems.length > 0 && <p className="maturity-note">{gap.ignoredItems.length} kayıt eksik vade/tutar, para birimi farkı veya mükerrer borç referansı nedeniyle maturity gap dışında bırakıldı.</p>}
+  </section>;
+}
+
 function ChangesPanel({ response }: { response: TreasuryAnalysisResponse }) {
   const changes = response.changes;
   return <section className="panel changes-panel" id="what-changed">
@@ -323,7 +445,7 @@ function ChangesPanel({ response }: { response: TreasuryAnalysisResponse }) {
 
 function Dashboard({ response, selectedDate, refreshingGap, onDateSelect }: { response: TreasuryAnalysisResponse; selectedDate: string; refreshingGap: boolean; onDateSelect: (date: string) => void }) {
   const { analysis } = response;
-  const { metrics, stress, gapDrivers } = analysis;
+  const { metrics, stress, gapDrivers, maturityGap } = analysis;
   const metricsList = [
     { label: "Kullanılabilir likidite", value: metrics.availableLiquidity, tone: "positive" as const },
     { label: "Minimum tahmini nakit", value: metrics.minimumForecastCash, detail: formatDate(metrics.minimumForecastCashDate), tone: metrics.minimumForecastCash < 0 ? "negative" as const : "neutral" as const },
@@ -342,6 +464,7 @@ function Dashboard({ response, selectedDate, refreshingGap, onDateSelect }: { re
       {refreshingGap && <p className="refresh-note">Seçili günün sürücüleri yenileniyor…</p>}
       <ScenarioTable scenarios={stress.scenarios} currency={analysis.currency} />
     </section>
+    <MaturityGapPanel gap={maturityGap} />
     <GapDriverPanel gap={gapDrivers} />
     <ChangesPanel response={response} />
   </>;
@@ -443,15 +566,15 @@ function App() {
   return <div className="app-shell">
     <aside className="sidebar">
       <a className="brand" href="#top" aria-label="Corporate ALM Intelligence ana sayfa"><span className="brand-mark"><i /><i /><i /></span><span>Corporate<strong>ALM Intelligence</strong></span></a>
-      <nav aria-label="Ana navigasyon"><span className="nav-label">Aktif ALM modülü</span><a className="active" href="#top"><Icon name="grid" /> ALM Overview</a><a href="#importer"><Icon name="upload" /> Data & Positions</a><a href="#forecast"><Icon name="pulse" /> Liquidity Forecast</a><a href="#gap-drivers"><Icon name="calendar" /> Gap Drivers</a><a href="#what-changed"><Icon name="changes" /> What Changed</a><span className="nav-label nav-label-next">Sonraki ALM katmanları</span><span className="nav-placeholder"><Icon name="changes" /> Maturity Gap <small>Next</small></span><span className="nav-placeholder"><Icon name="pulse" /> Debt & Funding <small>Next</small></span><span className="nav-placeholder"><Icon name="settings" /> Interest Rate Risk <small>Next</small></span></nav>
+      <nav aria-label="Ana navigasyon"><span className="nav-label">Aktif ALM modülü</span><a className="active" href="#top"><Icon name="grid" /> ALM Overview</a><a href="#importer"><Icon name="upload" /> Data & Positions</a><a href="#forecast"><Icon name="pulse" /> Liquidity Forecast</a><a href="#maturity-gap"><Icon name="changes" /> Maturity Gap</a><a href="#gap-drivers"><Icon name="calendar" /> Gap Drivers</a><a href="#what-changed"><Icon name="changes" /> What Changed</a><span className="nav-label nav-label-next">Sonraki ALM katmanları</span><span className="nav-placeholder"><Icon name="pulse" /> Debt & Funding <small>Next</small></span><span className="nav-placeholder"><Icon name="settings" /> Interest Rate Risk <small>Next</small></span></nav>
       <div className="sidebar-foot"><a href="#importer"><Icon name="settings" /> Analiz ayarları</a><span><i /> API bağlı</span></div>
     </aside>
     <main id="top">
-      <header className="topbar"><div><span className="eyebrow">CORPORATE LIQUIDITY & ASSET-LIABILITY MANAGEMENT</span><h1>ALM Intelligence</h1><span className="module-badge">Liquidity module · Phase 1</span></div><div className="report-context">{demoMode && <span className="demo-badge">DEMO</span>}<span><Icon name="calendar" />{response ? formatDate(response.analysis.asOfDate) : formatDate(parameters.asOfDate)}</span><span className="currency-badge">{response?.analysis.currency ?? parameters.currency}</span></div></header>
+      <header className="topbar"><div><span className="eyebrow">CORPORATE LIQUIDITY & ASSET-LIABILITY MANAGEMENT</span><h1>ALM Intelligence</h1><span className="module-badge">Liquidity + Maturity Gap · Phase 2</span></div><div className="report-context">{demoMode && <span className="demo-badge">DEMO</span>}<span><Icon name="calendar" />{response ? formatDate(response.analysis.asOfDate) : formatDate(parameters.asOfDate)}</span><span className="currency-badge">{response?.analysis.currency ?? parameters.currency}</span></div></header>
       <Importer uploads={uploads} expanded={importerExpanded} parameters={parameters} running={running} error={analysisError} onToggle={() => setImporterExpanded((value) => !value)} onFile={handleFile} onParameter={handleParameter} onAnalyze={() => void runAnalysis()} onSamples={() => void loadSamples()} onDemo={loadDemo} />
       <AlmPositionsPanel currency={parameters.currency} asOfDate={parameters.asOfDate} onSummaryChange={handlePositionSummary} />
       {response ? <Dashboard response={response} selectedDate={selectedDate} refreshingGap={refreshingGap} onDateSelect={(date) => void selectGapDate(date)} /> : <section className="welcome-state"><span className="welcome-icon"><Icon name="pulse" /></span><span className="eyebrow">LIQUIDITY MODULE</span><h2>ALM görünümünün kısa vadeli likidite katmanı</h2><p>CSV dosyalarınızı yükleyin, örnek dosyalarla gerçek pipeline’ı çalıştırın veya arayüzü görmek için demo veriyi açın.</p><button className="button-primary" onClick={loadDemo}><Icon name="spark" /> Demo cockpit’i aç</button></section>}
-      <footer><span>Corporate ALM Intelligence · Deterministic balance-sheet analytics</span><span>Active module: 90-day liquidity</span></footer>
+      <footer><span>Corporate ALM Intelligence · Deterministic balance-sheet analytics</span><span>Active modules: 90-day liquidity + 12-month maturity gap</span></footer>
     </main>
   </div>;
 }
