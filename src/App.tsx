@@ -22,6 +22,7 @@ import type {
   DatasetType,
   DebtFunding,
   GapDrivers,
+  InterestRateRisk,
   MaturityGap,
   StressScenario,
   TreasuryAnalysisResponse,
@@ -499,6 +500,118 @@ function DebtFundingPanel({
   </section>;
 }
 
+function RepricingChart({
+  risk,
+}: {
+  risk: InterestRateRisk;
+}) {
+  const maximum = Math.max(
+    ...risk.repricingBuckets.map(
+      (bucket) => bucket.repricingAmount,
+    ),
+    1,
+  );
+
+  return <div className="repricing-chart" role="img" aria-label="12 aylık faiz yeniden fiyatlama merdiveni">
+    {risk.repricingBuckets.map((bucket) => {
+      const floatingHeight = bucket.floatingAmount / maximum * 100;
+      const fixedHeight = bucket.fixedRefinancingAmount / maximum * 100;
+      return <div className="repricing-column" key={bucket.id}>
+        <span>{formatMoney(bucket.repricingAmount, risk.currency)}</span>
+        <div className="repricing-track">
+          <i className="repricing-fixed" style={{ height: `${fixedHeight}%` }} />
+          <i className="repricing-floating" style={{ height: `${floatingHeight}%` }} />
+        </div>
+        <strong>{bucket.id === "over12m" ? ">12A" : bucket.id}</strong>
+        <small>{bucket.label}</small>
+      </div>;
+    })}
+  </div>;
+}
+
+function InterestRateRiskPanel({
+  risk,
+}: {
+  risk: InterestRateRisk;
+}) {
+  const repricingShare =
+    risk.totalInterestBearingDebt === 0
+      ? 0
+      : risk.repricingExposure12M /
+        risk.totalInterestBearingDebt * 100;
+  const incompleteData =
+    risk.rateCoveragePercent < 90 ||
+    risk.unclassifiedRateDebt > 0;
+  const elevatedRisk =
+    repricingShare > 50;
+  const status = incompleteData
+    ? {
+        tone: "status-warning",
+        title: "Faiz verisi tamamlanmalı",
+        sentence: `Portföyün %${risk.rateCoveragePercent.toFixed(1)} kısmında faiz oranı mevcut; eksik faiz tipi veya oranı duyarlılık sonucunu sınırlıyor.`,
+      }
+    : elevatedRisk
+      ? {
+          tone: "status-negative",
+          title: "Faiz riski yüksek",
+          sentence: `Borç portföyünün %${repricingShare.toFixed(1)} kısmı önümüzdeki 12 ayda değişken faize veya refinansmana açık.`,
+        }
+      : {
+          tone: "status-positive",
+          title: "Faiz riski kontrollü",
+          sentence: `12 aylık yeniden fiyatlama riski toplam borcun %${repricingShare.toFixed(1)} seviyesinde.`,
+        };
+
+  return <section className="panel rate-panel" id="interest-rate-risk">
+    <div className="section-heading">
+      <div><span className="eyebrow">12 aylık yeniden fiyatlama görünümü</span><h2>Interest Rate Risk</h2><p>Sabit/değişken borç karması, refinansman riski ve yıllıklandırılmış faiz şoku etkisi</p></div>
+      <div className="rate-coverage"><span>Faiz veri kapsamı</span><strong>%{risk.rateCoveragePercent.toFixed(1)}</strong></div>
+    </div>
+    <div className="rate-summary">
+      <MetricCard label="Faiz taşıyan borç" value={formatMoney(risk.totalInterestBearingDebt, risk.currency)} />
+      <MetricCard label="Değişken faizli borç" value={formatMoney(risk.floatingRateDebt, risk.currency)} detail={`%${risk.floatingRateSharePercent.toFixed(1)} portföy payı`} tone="warning" />
+      <MetricCard label="12A repricing exposure" value={formatMoney(risk.repricingExposure12M, risk.currency)} detail={`%${repricingShare.toFixed(1)} portföy payı`} tone={elevatedRisk ? "negative" : "warning"} />
+      <MetricCard label="12A repricing gap" value={formatMoney(risk.repricingGap12M, risk.currency)} tone="negative" />
+      <MetricCard label="Ağırlıklı ort. faiz" value={`%${risk.weightedAverageRatePercent.toFixed(1)}`} detail="Oranı bilinen borç" />
+      <MetricCard label="Yıllık faiz gideri" value={formatMoney(risk.currentAnnualInterestExpense, risk.currency)} />
+    </div>
+    <div className={`rate-status ${status.tone}`}><strong>{status.title}</strong><span>{status.sentence}</span></div>
+    <div className="rate-layout">
+      <div className="rate-profile">
+        <h3>Borç faiz karması</h3>
+        <div className="rate-mix-bar">
+          <i className="mix-fixed" style={{ width: `${risk.fixedRateSharePercent}%` }} />
+          <i className="mix-floating" style={{ width: `${risk.floatingRateSharePercent}%` }} />
+          <i className="mix-unknown" style={{ width: `${Math.max(0, 100 - risk.fixedRateSharePercent - risk.floatingRateSharePercent)}%` }} />
+        </div>
+        <div className="rate-mix-legend">
+          <span><i className="mix-fixed" />Sabit <strong>{formatMoney(risk.fixedRateDebt, risk.currency)}</strong></span>
+          <span><i className="mix-floating" />Değişken <strong>{formatMoney(risk.floatingRateDebt, risk.currency)}</strong></span>
+          <span><i className="mix-unknown" />Sınıflanmamış <strong>{formatMoney(risk.unclassifiedRateDebt, risk.currency)}</strong></span>
+        </div>
+        <h3 className="repricing-title">Repricing merdiveni</h3>
+        <div className="repricing-legend"><span><i className="repricing-floating" />Değişken faiz</span><span><i className="repricing-fixed" />Sabit borç refinansmanı</span></div>
+        <RepricingChart risk={risk} />
+      </div>
+      <div className="sensitivity-section">
+        <h3>Faiz şoku duyarlılığı</h3>
+        <p>12 aylık repricing exposure için yıllıklandırılmış run-rate etki</p>
+        {risk.sensitivityScenarios.map((scenario) => <div className="sensitivity-card" key={scenario.shockBps}>
+          <span>+{scenario.shockBps} bp</span>
+          <div><strong>+{formatMoney(scenario.annualizedInterestIncrease, risk.currency)}</strong><small>yıllık ek faiz gideri</small></div>
+          <div><b>{formatMoney(scenario.shockedAnnualInterestExpense, risk.currency)}</b><small>şok sonrası gider</small></div>
+        </div>)}
+        <div className="repricing-breakdown"><span>Değişken faiz riski <strong>{formatMoney(risk.floatingExposure, risk.currency)}</strong></span><span>12A sabit refinansman <strong>{formatMoney(risk.fixedRefinancingExposure12M, risk.currency)}</strong></span></div>
+      </div>
+    </div>
+    <div className="table-scroll rate-table-wrap"><table className="rate-table">
+      <thead><tr><th>Lender</th><th>Toplam borç</th><th>Sabit</th><th>Değişken</th><th>12A repricing</th><th>Yıllık faiz gideri</th><th>Veri kapsamı</th></tr></thead>
+      <tbody>{risk.lenders.map((lender) => <tr key={lender.lender}><td><strong>{lender.lender}</strong><small>{lender.instrumentCount} enstrüman</small></td><td>{formatMoney(lender.totalDebt, risk.currency)}</td><td>{formatMoney(lender.fixedRateDebt, risk.currency)}</td><td className="warning-value">{formatMoney(lender.floatingRateDebt, risk.currency)}</td><td className={lender.repricingExposure12M > lender.totalDebt / 2 ? "negative-value" : ""}>{formatMoney(lender.repricingExposure12M, risk.currency)}</td><td>{formatMoney(lender.annualInterestExpense, risk.currency)}</td><td>%{lender.rateCoveragePercent.toFixed(1)}</td></tr>)}</tbody>
+    </table></div>
+    {risk.dataIssues.length > 0 && <p className="maturity-note">{risk.dataIssues.length} faiz veri bulgusu var: eksik tip/oran/vade, para birimi farkı veya mükerrer borç referansı duyarlılık kapsamını etkiliyor.</p>}
+  </section>;
+}
+
 function ChangesPanel({ response }: { response: TreasuryAnalysisResponse }) {
   const changes = response.changes;
   return <section className="panel changes-panel" id="what-changed">
@@ -519,7 +632,7 @@ function ChangesPanel({ response }: { response: TreasuryAnalysisResponse }) {
 
 function Dashboard({ response, selectedDate, refreshingGap, onDateSelect }: { response: TreasuryAnalysisResponse; selectedDate: string; refreshingGap: boolean; onDateSelect: (date: string) => void }) {
   const { analysis } = response;
-  const { metrics, stress, gapDrivers, maturityGap, debtFunding } = analysis;
+  const { metrics, stress, gapDrivers, maturityGap, debtFunding, interestRateRisk } = analysis;
   const metricsList = [
     { label: "Kullanılabilir likidite", value: metrics.availableLiquidity, tone: "positive" as const },
     { label: "Minimum tahmini nakit", value: metrics.minimumForecastCash, detail: formatDate(metrics.minimumForecastCashDate), tone: metrics.minimumForecastCash < 0 ? "negative" as const : "neutral" as const },
@@ -540,6 +653,7 @@ function Dashboard({ response, selectedDate, refreshingGap, onDateSelect }: { re
     </section>
     <MaturityGapPanel gap={maturityGap} />
     <DebtFundingPanel funding={debtFunding} />
+    <InterestRateRiskPanel risk={interestRateRisk} />
     <GapDriverPanel gap={gapDrivers} />
     <ChangesPanel response={response} />
   </>;
@@ -641,15 +755,15 @@ function App() {
   return <div className="app-shell">
     <aside className="sidebar">
       <a className="brand" href="#top" aria-label="Corporate ALM Intelligence ana sayfa"><span className="brand-mark"><i /><i /><i /></span><span>Corporate<strong>ALM Intelligence</strong></span></a>
-      <nav aria-label="Ana navigasyon"><span className="nav-label">Aktif ALM modülü</span><a className="active" href="#top"><Icon name="grid" /> ALM Overview</a><a href="#importer"><Icon name="upload" /> Data & Positions</a><a href="#forecast"><Icon name="pulse" /> Liquidity Forecast</a><a href="#maturity-gap"><Icon name="changes" /> Maturity Gap</a><a href="#debt-funding"><Icon name="pulse" /> Debt & Funding</a><a href="#gap-drivers"><Icon name="calendar" /> Gap Drivers</a><a href="#what-changed"><Icon name="changes" /> What Changed</a><span className="nav-label nav-label-next">Sonraki ALM katmanı</span><span className="nav-placeholder"><Icon name="settings" /> Interest Rate Risk <small>Next</small></span></nav>
+      <nav aria-label="Ana navigasyon"><span className="nav-label">Aktif ALM modülü</span><a className="active" href="#top"><Icon name="grid" /> ALM Overview</a><a href="#importer"><Icon name="upload" /> Data & Positions</a><a href="#forecast"><Icon name="pulse" /> Liquidity Forecast</a><a href="#maturity-gap"><Icon name="changes" /> Maturity Gap</a><a href="#debt-funding"><Icon name="pulse" /> Debt & Funding</a><a href="#interest-rate-risk"><Icon name="settings" /> Interest Rate Risk</a><a href="#gap-drivers"><Icon name="calendar" /> Gap Drivers</a><a href="#what-changed"><Icon name="changes" /> What Changed</a></nav>
       <div className="sidebar-foot"><a href="#importer"><Icon name="settings" /> Analiz ayarları</a><span><i /> API bağlı</span></div>
     </aside>
     <main id="top">
-      <header className="topbar"><div><span className="eyebrow">CORPORATE LIQUIDITY & ASSET-LIABILITY MANAGEMENT</span><h1>ALM Intelligence</h1><span className="module-badge">Liquidity + Maturity + Funding · Phase 3</span></div><div className="report-context">{demoMode && <span className="demo-badge">DEMO</span>}<span><Icon name="calendar" />{response ? formatDate(response.analysis.asOfDate) : formatDate(parameters.asOfDate)}</span><span className="currency-badge">{response?.analysis.currency ?? parameters.currency}</span></div></header>
+      <header className="topbar"><div><span className="eyebrow">CORPORATE LIQUIDITY & ASSET-LIABILITY MANAGEMENT</span><h1>ALM Intelligence</h1><span className="module-badge">Liquidity + Maturity + Funding + Rates · Phase 4</span></div><div className="report-context">{demoMode && <span className="demo-badge">DEMO</span>}<span><Icon name="calendar" />{response ? formatDate(response.analysis.asOfDate) : formatDate(parameters.asOfDate)}</span><span className="currency-badge">{response?.analysis.currency ?? parameters.currency}</span></div></header>
       <Importer uploads={uploads} expanded={importerExpanded} parameters={parameters} running={running} error={analysisError} onToggle={() => setImporterExpanded((value) => !value)} onFile={handleFile} onParameter={handleParameter} onAnalyze={() => void runAnalysis()} onSamples={() => void loadSamples()} onDemo={loadDemo} />
       <AlmPositionsPanel currency={parameters.currency} asOfDate={parameters.asOfDate} onSummaryChange={handlePositionSummary} />
       {response ? <Dashboard response={response} selectedDate={selectedDate} refreshingGap={refreshingGap} onDateSelect={(date) => void selectGapDate(date)} /> : <section className="welcome-state"><span className="welcome-icon"><Icon name="pulse" /></span><span className="eyebrow">LIQUIDITY MODULE</span><h2>ALM görünümünün kısa vadeli likidite katmanı</h2><p>CSV dosyalarınızı yükleyin, örnek dosyalarla gerçek pipeline’ı çalıştırın veya arayüzü görmek için demo veriyi açın.</p><button className="button-primary" onClick={loadDemo}><Icon name="spark" /> Demo cockpit’i aç</button></section>}
-      <footer><span>Corporate ALM Intelligence · Deterministic balance-sheet analytics</span><span>Active modules: liquidity + maturity gap + debt &amp; funding</span></footer>
+      <footer><span>Corporate ALM Intelligence · Deterministic balance-sheet analytics</span><span>Active modules: liquidity + maturity + funding + interest rate risk</span></footer>
     </main>
   </div>;
 }

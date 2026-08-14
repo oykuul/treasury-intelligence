@@ -1,6 +1,6 @@
 # Corporate ALM Intelligence
 
-Corporate ALM Intelligence turns treasury and balance-sheet source data into deterministic liquidity, maturity-gap, funding, and interest-rate-risk decisions for finance teams. The current application delivers the 90-day liquidity, 12-month contractual maturity-gap, and 36-month debt-and-funding layers.
+Corporate ALM Intelligence turns treasury and balance-sheet source data into deterministic liquidity, maturity-gap, funding, and interest-rate-risk decisions for finance teams. The current application delivers 90-day liquidity, 12-month contractual maturity gap, 36-month debt and funding, and 12-month interest-rate repricing layers.
 
 ## Current product scope
 
@@ -29,6 +29,8 @@ The **Nakit ve kredi limitleri** panel supports persisted manual ALM positions. 
 Every treasury analysis response also includes `analysis.maturityGap`. It assigns overdue items plus the following 365 days to deterministic maturity buckets, separates contractual assets and liabilities, calculates net and cumulative gap, and shows the residual funding need after available committed facilities. Drawn manual facilities enter the liability ladder at maturity; matching debt and facility references are de-duplicated.
 
 `analysis.debtFunding` builds a 36-month quarterly debt wall from outstanding principal and drawn facilities. It calculates debt due within 12/24/36 months, residual 12-month refinancing need after undrawn facilities, facility utilization, the largest maturity wall, and lender concentration. Debt and facility references are de-duplicated before funded debt is totaled.
+
+`analysis.interestRateRisk` classifies funded debt as fixed, floating, or unknown and builds a 12-month repricing ladder. Floating debt reprices immediately; fixed debt enters the ladder at contractual maturity as refinancing exposure. The result includes rate-data coverage, weighted average rate, current annual interest expense, and annualized run-rate sensitivity at +100, +200, and +300 basis points. The shock-sensitive balance combines floating debt with fixed debt maturing inside 12 months; hedge and derivative valuation remain outside this phase.
 
 ## Local commands
 
@@ -105,6 +107,7 @@ The response contains:
 - `analysis.gapDrivers`
 - `analysis.maturityGap`
 - `analysis.debtFunding`
+- `analysis.interestRateRisk`
 
 `gapTargetDate` is optional. If omitted, Gap Drivers automatically explains the minimum-liquidity date.
 
@@ -137,5 +140,5 @@ flowchart TD
   CSV["CSV source files"] --> Pipeline["Mapping, quality and canonicalization"]
   Pipeline --> D1["Reconciled D1 records"]
   D1 --> API["Treasury Analysis API"]
-  API --> Output["Forecast, CFO strip, stress, changes and gap drivers"]
+  API --> Output["Liquidity, maturity, funding, rate risk and changes"]
 ```
