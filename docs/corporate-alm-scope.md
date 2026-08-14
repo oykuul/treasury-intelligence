@@ -53,6 +53,6 @@ Manual entry uses the same canonical contracts as imported files, so manually en
 2. Add cash-balance and credit-facility canonical datasets.
 3. Add manual position and assumption entry.
 4. Build the 12-month maturity ladder and cumulative gap. **Delivered in v0.8.0.**
-5. Add debt/funding profile and lender concentration.
+5. Add debt/funding profile and lender concentration. **Delivered in v0.9.0.**
 6. Add repricing gap and interest-rate sensitivity.
 7. Consolidate every module into the Executive ALM Overview.

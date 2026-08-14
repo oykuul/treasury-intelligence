@@ -178,6 +178,10 @@ describe(
         expect(
           result.maturityGap.totalLiabilities12M,
         ).toBe(1_600);
+
+        expect(
+          result.debtFunding.debtOutstanding,
+        ).toBe(0);
       },
     );
 

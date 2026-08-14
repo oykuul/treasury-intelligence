@@ -25,6 +25,10 @@ import {
   buildMaturityGap,
   type MaturityGapResult,
 } from "../alm/build-maturity-gap";
+import {
+  buildDebtFunding,
+  type DebtFundingResult,
+} from "../alm/build-debt-funding";
 import type {
   AlmPosition,
 } from "../alm/positions";
@@ -58,6 +62,7 @@ export type TreasuryAnalysisResult = {
   stress: StressScenarioComparison;
   gapDrivers: GapDriversResult;
   maturityGap: MaturityGapResult;
+  debtFunding: DebtFundingResult;
 };
 
 function parseIsoDate(
@@ -267,6 +272,21 @@ export function runTreasuryAnalysis(
         input.unusedCommittedFacilities,
     });
 
+  const debtFunding =
+    buildDebtFunding({
+      datasets:
+        input.datasets,
+
+      positions:
+        input.positions,
+
+      currency:
+        input.currency,
+
+      asOfDate:
+        input.asOfDate,
+    });
+
   return {
     currency:
       forecast.currency,
@@ -282,5 +302,6 @@ export function runTreasuryAnalysis(
     stress,
     gapDrivers,
     maturityGap,
+    debtFunding,
   };
 }
