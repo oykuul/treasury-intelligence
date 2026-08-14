@@ -181,7 +181,15 @@ export function validateAlmPosition(
     );
   }
 
-  const common = {
+  const common: Pick<
+    AlmPositionInput,
+    | "positionType"
+    | "entity"
+    | "counterpartyName"
+    | "referenceId"
+    | "currency"
+    | "asOfDate"
+  > = {
     positionType,
     entity:
       requireText(
