@@ -1,5 +1,6 @@
 import { normalizeRecords } from "./canonical/normalize-records";
 import { persistCanonicalRecords } from "./canonical/persist-records";
+import { buildTreasuryChangeAnalysis } from "./changes/build-treasury-change-analysis";
 import { parseCsvText } from "./ingestion/csv";
 import { detectColumns } from "./ingestion/detect-columns";
 import { persistAnalysis } from "./ingestion/persist-analysis";
@@ -8,6 +9,9 @@ import { persistQualityIssues } from "./quality/persist-quality";
 import { runDataQuality } from "./quality/run-quality";
 import { reconcileImport } from "./reconciliation/reconcile-import";
 import { persistReconciliation } from "./reconciliation/persist-reconciliation";
+import { loadTreasuryDatasets } from "./treasury/load-treasury-datasets";
+import { runTreasuryAnalysis } from "./treasury/run-treasury-analysis";
+import { buildLiquidityForecast } from "./treasury/build-liquidity-forecast";
 
 const DEV_ORG_ID = "org_demo";
 
@@ -16,6 +20,23 @@ type CreateImportBody = {
   sourceType?: string;
   rowCount?: number;
   columnCount?: number;
+};
+
+type TreasuryAnalysisBody = {
+  importIds?: string[];
+  previousImportIds?: string[];
+
+  currency?: string;
+  asOfDate?: string;
+
+  openingLiquidity?: number;
+  previousOpeningLiquidity?: number;
+  unusedCommittedFacilities?: number;
+
+  minimumLiquidityBuffer?: number;
+  minimumLiquidityThreshold?: number;
+
+  gapTargetDate?: string;
 };
 
 export default {
@@ -30,7 +51,7 @@ export default {
       return Response.json({
         status: "ok",
         service: "treasury-intelligence-api",
-        version: "0.5.0",
+        version: "0.6.0",
         database: "connected",
       });
     }
@@ -390,6 +411,240 @@ export default {
         imports:
           result.results,
       });
+    }
+
+    // BUILD COMPLETE CFO ANALYSIS
+    // FROM PERSISTED TREASURY IMPORTS
+    if (
+      url.pathname ===
+        "/api/treasury/analyze" &&
+      request.method === "POST"
+    ) {
+      try {
+        const body =
+          (await request.json()) as
+            TreasuryAnalysisBody;
+
+        if (
+          !Array.isArray(
+            body.importIds,
+          ) ||
+          body.importIds.some(
+            (importId) =>
+              typeof importId !==
+              "string",
+          )
+        ) {
+          throw new Error(
+            "importIds must be an array of strings.",
+          );
+        }
+
+        if (
+          body.previousImportIds !==
+            undefined &&
+          (
+            !Array.isArray(
+              body.previousImportIds,
+            ) ||
+            body.previousImportIds.some(
+              (importId) =>
+                typeof importId !==
+                "string",
+            )
+          )
+        ) {
+          throw new Error(
+            "previousImportIds must be an array of strings.",
+          );
+        }
+
+        if (
+          typeof body.currency !==
+          "string"
+        ) {
+          throw new Error(
+            "currency is required.",
+          );
+        }
+
+        if (
+          typeof body.asOfDate !==
+          "string"
+        ) {
+          throw new Error(
+            "asOfDate is required.",
+          );
+        }
+
+        if (
+          typeof body.openingLiquidity !==
+          "number"
+        ) {
+          throw new Error(
+            "openingLiquidity is required.",
+          );
+        }
+
+        if (
+          typeof body.unusedCommittedFacilities !==
+          "number"
+        ) {
+          throw new Error(
+            "unusedCommittedFacilities is required.",
+          );
+        }
+
+        if (
+          typeof body.minimumLiquidityBuffer !==
+          "number"
+        ) {
+          throw new Error(
+            "minimumLiquidityBuffer is required.",
+          );
+        }
+
+        const datasets =
+          await loadTreasuryDatasets(
+            env.DB,
+            DEV_ORG_ID,
+            body.importIds,
+          );
+
+        const analysis =
+          runTreasuryAnalysis({
+            datasets,
+
+            currency:
+              body.currency,
+
+            asOfDate:
+              body.asOfDate,
+
+            openingLiquidity:
+              body.openingLiquidity,
+
+            unusedCommittedFacilities:
+              body.unusedCommittedFacilities,
+
+            minimumLiquidityBuffer:
+              body.minimumLiquidityBuffer,
+
+            minimumLiquidityThreshold:
+              body.minimumLiquidityThreshold,
+
+            gapTargetDate:
+              body.gapTargetDate,
+          });
+
+        let previousImports:
+          {
+            ids: string[];
+            datasets: {
+              sourceType: string;
+              records: number;
+            }[];
+          } |
+          null = null;
+
+        let changes:
+          ReturnType<
+            typeof buildTreasuryChangeAnalysis
+          > |
+          null = null;
+
+        if (
+          body.previousImportIds
+        ) {
+          const previousDatasets =
+            await loadTreasuryDatasets(
+              env.DB,
+              DEV_ORG_ID,
+              body.previousImportIds,
+            );
+
+          const previousForecast =
+            buildLiquidityForecast({
+              datasets:
+                previousDatasets,
+
+              currency:
+                body.currency,
+
+              openingLiquidity:
+                body.previousOpeningLiquidity ??
+                body.openingLiquidity,
+
+              startDate:
+                analysis.asOfDate,
+
+              endDate:
+                analysis.endDate,
+            });
+
+          changes =
+            buildTreasuryChangeAnalysis({
+              previousDatasets,
+              currentDatasets:
+                datasets,
+
+              previousForecast,
+              currentForecast:
+                analysis.forecast,
+            });
+
+          previousImports = {
+            ids:
+              body.previousImportIds,
+
+            datasets:
+              previousDatasets.map(
+                (dataset) => ({
+                  sourceType:
+                    dataset.type,
+
+                  records:
+                    dataset.records.length,
+                }),
+              ),
+          };
+        }
+
+        return Response.json({
+          imports: {
+            ids:
+              body.importIds,
+
+            datasets:
+              datasets.map(
+                (dataset) => ({
+                  sourceType:
+                    dataset.type,
+
+                  records:
+                    dataset.records.length,
+                }),
+              ),
+          },
+
+          previousImports,
+
+          analysis,
+          changes,
+        });
+      } catch (error) {
+        return Response.json(
+          {
+            error:
+              error instanceof Error
+                ? error.message
+                : "Treasury analysis failed.",
+          },
+          {
+            status: 400,
+          },
+        );
+      }
     }
 
     // GET SINGLE IMPORT
