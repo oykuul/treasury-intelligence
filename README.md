@@ -1,32 +1,106 @@
-# React + TypeScript + Vite
+# Treasury Intelligence
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Treasury Intelligence turns treasury source files into a deterministic 90-day liquidity view for finance teams.
 
-Currently, two official plugins are available:
+## Current backend scope
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- CSV ingestion and automatic column mapping, including SAP aliases
+- Data-quality checks and persisted issue records
+- Canonical treasury records in D1
+- Source-to-canonical reconciliation
+- Dataset contracts for `payables`, `receivables`, and `debt`
+- 90-day liquidity forecast
+- Seven CFO metrics and deterministic CFO verdict
+- Base, Moderate, and Severe stress scenarios
+- What Changed record comparison
+- Forecast movement reconciliation and attribution bridge
+- Gap Drivers and counterparty concentration
 
-## React Compiler
+## Local commands
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+```bash
+npm ci
+npm run typecheck
+npm run lint
+npm test
+npm run dev
+```
 
-## Expanding the Oxlint configuration
+Apply D1 migrations before testing API routes against a fresh local database:
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
+```bash
+npx wrangler d1 migrations apply treasury-intelligence-db --local
+```
+
+## API flow
+
+### 1. Upload each current source dataset
+
+```bash
+curl -s -X POST http://localhost:5173/api/imports/analyze \
+  -F "sourceType=payables" \
+  -F "file=@tests/fixtures/sap-payables.csv"
+```
+
+Repeat for `receivables` and `debt`. Keep the returned `import.importId` values.
+
+### 2. Build the CFO analysis package
+
+```bash
+curl -s -X POST http://localhost:5173/api/treasury/analyze \
+  -H "content-type: application/json" \
+  -d '{
+    "importIds": [
+      "CURRENT_PAYABLES_IMPORT_ID",
+      "CURRENT_RECEIVABLES_IMPORT_ID",
+      "CURRENT_DEBT_IMPORT_ID"
+    ],
+    "currency": "TRY",
+    "asOfDate": "2026-08-14",
+    "openingLiquidity": 25000000,
+    "unusedCommittedFacilities": 10000000,
+    "minimumLiquidityBuffer": 5000000
+  }'
+```
+
+The response contains:
+
+- `analysis.forecast`
+- `analysis.metrics`
+- `analysis.verdict`
+- `analysis.stress`
+- `analysis.gapDrivers`
+
+`gapTargetDate` is optional. If omitted, Gap Drivers automatically explains the minimum-liquidity date.
+
+### 3. Add previous-period imports for What Changed
+
+Pass a matching previous import for every current source type:
 
 ```json
 {
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
+  "previousImportIds": [
+    "PREVIOUS_PAYABLES_IMPORT_ID",
+    "PREVIOUS_RECEIVABLES_IMPORT_ID",
+    "PREVIOUS_DEBT_IMPORT_ID"
+  ]
 }
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+When `previousImportIds` is present, the response also includes:
+
+- `changes.comparison`: amount changes, date shifts, new items, and removed items
+- `changes.movement`: closing-liquidity reconciliation
+- `changes.forecastBridge`: driver-by-driver closing and minimum-liquidity attribution
+
+The current and previous source-type sets must match so that missing datasets are not misclassified as removed or new records.
+
+## Architecture
+
+```mermaid
+flowchart TD
+  CSV["CSV source files"] --> Pipeline["Mapping, quality and canonicalization"]
+  Pipeline --> D1["Reconciled D1 records"]
+  D1 --> API["Treasury Analysis API"]
+  API --> Output["Forecast, CFO strip, stress, changes and gap drivers"]
+```

@@ -1,12 +1,14 @@
 {
   "name": "treasury-intelligence",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.6.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "typecheck": "tsc -b",
     "lint": "oxlint",
+    "test": "vitest run --config vitest.config.ts",
     "preview": "npm run build && vite preview",
     "deploy": "npm run build && wrangler deploy",
     "cf-typegen": "wrangler types"
