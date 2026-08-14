@@ -280,13 +280,14 @@ export function buildInterestRateRisk(
   if (!asOfDate) {
     throw new Error("asOfDate must be a valid ISO date.");
   }
+  const reportingDate = asOfDate;
 
   const currency = normalizeCurrency(input.currency);
   if (!currency) {
     throw new Error("currency is required.");
   }
 
-  const buckets = makeBuckets(asOfDate);
+  const buckets = makeBuckets(reportingDate);
   const instruments: InterestRateInstrument[] = [];
   const dataIssues: InterestRateDataIssue[] = [];
   const lenders = new Map<string, MutableLender>();
@@ -351,7 +352,7 @@ export function buildInterestRateRisk(
           reason: "MISSING_MATURITY",
         });
       } else {
-        const bucket = buckets[fixedBucketIndex(maturity, asOfDate)];
+        const bucket = buckets[fixedBucketIndex(maturity, reportingDate)];
         repricingBucketId = bucket.id;
         bucket.fixedRefinancingAmount += value.outstandingAmount;
         bucket.repricingAmount += value.outstandingAmount;
@@ -503,7 +504,7 @@ export function buildInterestRateRisk(
   return {
     currency,
     asOfDate: input.asOfDate,
-    horizonEndDate: formatIsoDate(addMonths(asOfDate, 12)),
+    horizonEndDate: formatIsoDate(addMonths(reportingDate, 12)),
     totalInterestBearingDebt,
     fixedRateDebt,
     floatingRateDebt,
