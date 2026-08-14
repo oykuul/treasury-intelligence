@@ -212,6 +212,29 @@ function Importer({ uploads, expanded, parameters, running, error, onToggle, onF
   </section>;
 }
 
+function DataStatusBar({ uploads, demoMode, manualPositionCount, expanded, onToggle }: {
+  uploads: UploadGroups;
+  demoMode: boolean;
+  manualPositionCount: number;
+  expanded: boolean;
+  onToggle: () => void;
+}) {
+  const readyCount = demoMode
+    ? DATASETS.length
+    : DATASETS.filter((dataset) => uploads.current[dataset].importId).length;
+
+  return <button className="data-status-bar" type="button" onClick={onToggle} aria-expanded={expanded} aria-controls="data-workspace">
+    <span className="data-status-title"><Icon name="upload" /><span><strong>Veri &amp; Girdiler</strong><small>Analiz kapsamını ve manuel pozisyonları yönetin</small></span></span>
+    <span className="dataset-statuses">{DATASETS.map((dataset) => {
+      const ready = demoMode || Boolean(uploads.current[dataset].importId);
+      return <span className={ready ? "is-ready" : "is-missing"} key={dataset}><i />{DATASET_LABELS[dataset]} {ready ? "✓" : "—"}</span>;
+    })}</span>
+    <span className="manual-position-status">{manualPositionCount} Manuel Pozisyon</span>
+    <span className={`dataset-total ${readyCount === DATASETS.length ? "is-ready" : ""}`}>{readyCount}/3 veri seti güncel</span>
+    <span className="data-update-cta">{expanded ? "Girdileri Kapat" : "Dosyaları Güncelle"}<Icon name="chevron" /></span>
+  </button>;
+}
+
 function StressChart({ scenarios, threshold, selectedDate, onDateSelect }: {
   scenarios: StressScenario[];
   threshold: number;
@@ -634,15 +657,6 @@ const EXECUTIVE_PILLAR_LABELS: Record<ExecutivePillarId, string> = {
   DATA: "Veri kapsamı",
 };
 
-const EXECUTIVE_PILLAR_LINKS: Record<ExecutivePillarId, string> = {
-  LIQUIDITY: "#forecast",
-  STRESS: "#forecast",
-  MATURITY: "#maturity-gap",
-  FUNDING: "#debt-funding",
-  RATE: "#interest-rate-risk",
-  DATA: "#importer",
-};
-
 const EXECUTIVE_ACTIONS: Record<ExecutivePillarId, string> = {
   LIQUIDITY: "Likidite açığını ihlal tarihinden önce kapat.",
   STRESS: "Kontenjan fonlama ve tahsilat hızlandırma tetiklerini hazırla.",
@@ -652,10 +666,18 @@ const EXECUTIVE_ACTIONS: Record<ExecutivePillarId, string> = {
   DATA: "Eksik tutar, vade, faiz tipi ve oran alanlarını tamamla.",
 };
 
+function CommandKpi({ label, value, detail, tone }: {
+  label: string;
+  value: string;
+  detail: string;
+  tone: "positive" | "negative" | "warning" | "violet";
+}) {
+  return <article className={`command-kpi command-${tone}`}><span>{label}</span><strong>{value}</strong><small>{detail}</small></article>;
+}
+
 function ExecutiveOverviewPanel({ response }: { response: TreasuryAnalysisResponse }) {
   const { analysis } = response;
   const { executiveOverview: overview, metrics, maturityGap, debtFunding, interestRateRisk, stress } = analysis;
-  const severe = stress.scenarios.find((scenario) => scenario.name === "SEVERE");
   const plusTwoHundred = interestRateRisk.sensitivityScenarios.find((scenario) => scenario.shockBps === 200);
   const headline = overview.status === "CRITICAL"
     ? "Acil ALM aksiyonu gerekiyor."
@@ -664,46 +686,36 @@ function ExecutiveOverviewPanel({ response }: { response: TreasuryAnalysisRespon
       : overview.status === "WATCH"
         ? "Pozisyon fonlanmış durumda; temel risk limitleri izlenmeli."
         : "ALM pozisyonu modellenen politika aralığında.";
-  const pillarValues: Record<ExecutivePillarId, { value: string; detail: string }> = {
-    LIQUIDITY: { value: formatMoney(metrics.minimumForecastCash, analysis.currency), detail: `Minimum nakit · ${formatDate(metrics.minimumForecastCashDate)}` },
-    STRESS: { value: formatMoney(severe?.minimumLiquidity ?? 0, analysis.currency), detail: "Severe senaryo minimumu" },
-    MATURITY: { value: formatMoney(maturityGap.residualFundingNeed, analysis.currency), detail: "Limit sonrası açık" },
-    FUNDING: { value: formatMoney(debtFunding.refinancingNeed12M, analysis.currency), detail: "12A refinansman açığı" },
-    RATE: { value: `+${formatMoney(plusTwoHundred?.annualizedInterestIncrease ?? 0, analysis.currency)}`, detail: "+200 bp yıllık etki" },
-    DATA: { value: String(overview.dataQualityFindings), detail: "Açıklanan veri bulgusu" },
-  };
-  const keyMetrics = [
-    ["Kullanılabilir likidite", metrics.availableLiquidity],
-    ["Minimum tahmini nakit", metrics.minimumForecastCash],
-    ["12A vade açığı", maturityGap.residualFundingNeed],
-    ["12A refinansman açığı", debtFunding.refinancingNeed12M],
-    ["12A repricing exposure", interestRateRisk.repricingExposure12M],
-    ["Yıllık faiz gideri", interestRateRisk.currentAnnualInterestExpense],
-  ] as const;
+  const dominantRisk = overview.dominantRiskPillar ? EXECUTIVE_PILLAR_LABELS[overview.dominantRiskPillar] : "Belirgin risk yok";
+  const actions = overview.priorityActions.slice(0, 4);
+  const lenders = debtFunding.lenders.slice(0, 5);
 
-  return <section className={`executive-overview executive-${overview.status.toLowerCase()}`} aria-labelledby="executive-title">
-    <div className="executive-hero">
-      <div>
-        <span className="eyebrow">Executive ALM Overview</span>
-        <h2 id="executive-title">{headline}</h2>
-        <p>{overview.statusCounts.CRITICAL + overview.statusCounts.ACTION_REQUIRED} aksiyon alanı, {overview.statusCounts.WATCH} izleme alanı · Baskın risk: {overview.dominantRiskPillar ? EXECUTIVE_PILLAR_LABELS[overview.dominantRiskPillar] : "Yok"}</p>
+  return <section className={`alco-command executive-${overview.status.toLowerCase()}`} aria-labelledby="executive-title">
+    <div className="command-kpi-row">
+      <article className="command-verdict">
+        <div><span className="eyebrow">Yönetim değerlendirmesi</span><h2 id="executive-title">{headline}</h2><p>{overview.statusCounts.CRITICAL + overview.statusCounts.ACTION_REQUIRED} aksiyon alanı · Baskın risk: <strong>{dominantRisk}</strong></p></div>
+        <span className="executive-status">{EXECUTIVE_STATUS_LABELS[overview.status]}</span>
+      </article>
+      <CommandKpi label="Kullanılabilir likidite" value={formatMoney(metrics.availableLiquidity, analysis.currency)} detail={`Minimum ${formatMoney(metrics.minimumForecastCash, analysis.currency)} · ${formatDate(metrics.minimumForecastCashDate)}`} tone="positive" />
+      <CommandKpi label="12A refinansman açığı" value={formatMoney(debtFunding.refinancingNeed12M, analysis.currency)} detail={`${formatMoney(debtFunding.debtDue12M, analysis.currency)} vadesi geliyor`} tone={debtFunding.refinancingNeed12M > 0 ? "negative" : "positive"} />
+      <CommandKpi label="Limit sonrası vade açığı" value={formatMoney(maturityGap.residualFundingNeed, analysis.currency)} detail={`Minimum gap ${formatMoney(maturityGap.minimumCumulativeGap12M, analysis.currency)}`} tone={maturityGap.residualFundingNeed > 0 ? "negative" : "positive"} />
+      <CommandKpi label="+200 bp faiz etkisi" value={`+${formatMoney(plusTwoHundred?.annualizedInterestIncrease ?? 0, analysis.currency)}`} detail={`${formatMoney(interestRateRisk.repricingExposure12M, analysis.currency)} repricing exposure`} tone="warning" />
+    </div>
+    <div className="command-grid">
+      <article className="command-panel command-maturity">
+        <header><div><span>12 aylık vade görünümü</span><h3>Kümülatif Maturity Gap</h3></div><div className="command-legend"><span><i className="asset" />Varlık</span><span><i className="liability" />Yükümlülük</span><span><i className="cumulative" />Kümülatif gap</span></div></header>
+        <MaturityGapChart gap={maturityGap} />
+        <div className="command-stat-strip"><span>12A varlık<strong>{formatMoney(maturityGap.totalAssets12M, analysis.currency)}</strong></span><span>12A yükümlülük<strong>{formatMoney(maturityGap.totalLiabilities12M, analysis.currency)}</strong></span><span>Minimum gap<strong className={maturityGap.minimumCumulativeGap12M < 0 ? "risk" : "safe"}>{formatMoney(maturityGap.minimumCumulativeGap12M, analysis.currency)}</strong></span></div>
+      </article>
+      <div className="command-middle-column">
+        <article className="command-panel command-funding"><header><div><span>36 aylık görünüm</span><h3>Funding Wall</h3></div><strong className="risk">{formatMoney(debtFunding.largestMaturityWall, analysis.currency)}</strong></header><DebtWallChart funding={debtFunding} /></article>
+        <article className="command-panel command-repricing"><header><div><span>Faiz yapısı</span><h3>Repricing Profili</h3></div><strong className="warning">%{interestRateRisk.floatingRateSharePercent.toFixed(1)} değişken</strong></header><RepricingChart risk={interestRateRisk} /></article>
       </div>
-      <span className="executive-status">{EXECUTIVE_STATUS_LABELS[overview.status]}</span>
+      <article className="command-panel command-actions"><header><div><span>Karar kuyruğu</span><h3>Öncelikli Aksiyonlar</h3></div><b>{actions.length}</b></header>{actions.length > 0 ? <ol>{actions.map((action) => <li key={action.priority}><b>{action.priority}</b><div><strong>{EXECUTIVE_PILLAR_LABELS[action.pillarId]}</strong><p>{EXECUTIVE_ACTIONS[action.pillarId]}</p></div>{action.impactAmount !== null && action.impactAmount > 0 && <span>{formatMoney(action.impactAmount, analysis.currency)}</span>}</li>)}</ol> : <p className="command-empty">Açık yönetim aksiyonu bulunmuyor.</p>}<a href="#detail-analyses">Detay analizlere git →</a></article>
+      <article className="command-panel command-stress"><header><div><span>90 günlük dayanım</span><h3>Stres Matrisi</h3></div></header><div className="command-table"><div className="command-table-head"><span>Senaryo</span><span>Minimum nakit</span><span>Fonlama</span><span>İhlal</span></div>{stress.scenarios.map((scenario) => <div className={`command-table-row scenario-${scenario.name.toLowerCase()}`} key={scenario.name}><strong><i />{scenario.label}</strong><span className={scenario.minimumLiquidity < 0 ? "risk" : "safe"}>{formatMoney(scenario.minimumLiquidity, analysis.currency)}</span><span>{formatMoney(scenario.fundingNeed, analysis.currency)}</span><span>{scenario.firstThresholdBreachDate ? formatDate(scenario.firstThresholdBreachDate) : "—"}</span></div>)}</div></article>
+      <article className="command-panel command-lenders"><header><div><span>Fonlama kaynakları</span><h3>Lender Yoğunlaşması</h3></div><strong className={debtFunding.top3LenderConcentration > 70 ? "warning" : "safe"}>%{debtFunding.top3LenderConcentration.toFixed(1)}</strong></header>{lenders.map((lender) => <div className="command-lender-row" key={lender.lender}><div><strong>{lender.lender}</strong><small>{formatMoney(lender.debtOutstanding, analysis.currency)} borç · {formatMoney(lender.availableFacilities, analysis.currency)} boş limit</small></div><span><i style={{ width: `${Math.min(100, lender.sharePercent)}%` }} /></span><b>%{lender.sharePercent.toFixed(1)}</b></div>)}</article>
     </div>
-    <div className="executive-kpis" aria-label="Temel ALM metrikleri">
-      {keyMetrics.map(([label, value]) => <div key={label}><span>{label}</span><strong>{formatMoney(value, analysis.currency)}</strong></div>)}
-    </div>
-    <div className="executive-pillar-grid">
-      {overview.pillars.map((pillar) => <a key={pillar.id} href={EXECUTIVE_PILLAR_LINKS[pillar.id]} className={`executive-pillar pillar-${pillar.status.toLowerCase()}`}>
-        <div><span>{EXECUTIVE_PILLAR_LABELS[pillar.id]}</span><b>{EXECUTIVE_STATUS_LABELS[pillar.status]}</b></div>
-        <strong>{pillarValues[pillar.id].value}</strong>
-        <small>{pillarValues[pillar.id].detail}</small>
-      </a>)}
-    </div>
-    {overview.priorityActions.length > 0 && <div className="executive-actions">
-      <span>Öncelikli aksiyonlar</span>
-      <ol>{overview.priorityActions.map((action) => <li key={action.priority}><b>{action.priority}</b><p><strong>{EXECUTIVE_PILLAR_LABELS[action.pillarId]}</strong>{EXECUTIVE_ACTIONS[action.pillarId]}</p>{action.impactAmount !== null && action.impactAmount > 0 && <span>{formatMoney(action.impactAmount, analysis.currency)}</span>}</li>)}</ol>
-    </div>}
+    {overview.dataQualityFindings > 0 && <p className="command-data-note">Veri kapsamı: {overview.dataQualityFindings} bulgu açıklanmayı bekliyor. Veri &amp; Girdiler barından kaynak kayıtları güncelleyebilirsiniz.</p>}
   </section>;
 }
 
@@ -712,7 +724,8 @@ function Dashboard({ response, selectedDate, refreshingGap, onDateSelect }: { re
   const { stress, gapDrivers, maturityGap, debtFunding, interestRateRisk } = analysis;
   return <>
     <ExecutiveOverviewPanel response={response} />
-    <section className="panel forecast-panel" id="forecast">
+    <section className="detail-heading" id="detail-analyses"><div><span className="eyebrow">Analitik çalışma alanı</span><h2>Detay Analizler</h2></div><p>Yönetim özetindeki risk ve aksiyonların hesaplama katmanları</p></section>
+    <section className="panel forecast-panel detail-panel" id="forecast">
       <div className="section-heading"><div><span className="eyebrow">90 günlük görünüm</span><h2>Likidite ve stres senaryoları</h2><p>Grafikte bir güne tıklayarak o günün Gap Drivers analizini açın.</p></div><div className="legend">{stress.scenarios.map((scenario) => <span key={scenario.name}><i className={`scenario-${scenario.name.toLowerCase()}`} />{scenario.label}</span>)}</div></div>
       <StressChart scenarios={stress.scenarios} threshold={stress.minimumLiquidityThreshold} selectedDate={selectedDate} onDateSelect={onDateSelect} />
       {refreshingGap && <p className="refresh-note">Seçili günün sürücüleri yenileniyor…</p>}
@@ -729,6 +742,7 @@ function Dashboard({ response, selectedDate, refreshingGap, onDateSelect }: { re
 function App() {
   const [uploads, setUploads] = useState<UploadGroups>(makeUploadGroups);
   const [importerExpanded, setImporterExpanded] = useState(true);
+  const [dataWorkspaceOpen, setDataWorkspaceOpen] = useState(true);
   const [parameters, setParameters] = useState<AnalysisParameters>({ currency: "TRY", asOfDate: "2026-08-14", openingLiquidity: 42_000_000, unusedCommittedFacilities: 20_000_000, minimumLiquidityBuffer: 15_000_000 });
   const [response, setResponse] = useState<TreasuryAnalysisResponse | null>(null);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
@@ -764,12 +778,12 @@ function App() {
     setRunning(true); setAnalysisError(null); setDemoMode(false);
     try {
       const next = await analyzeTreasury({ ...parameters, importIds: currentIds, ...(previousIds.length > 0 ? { previousImportIds: previousIds } : {}), ...(gapTargetDate ? { gapTargetDate } : {}) });
-      setResponse(next); setSelectedDate(next.analysis.gapDrivers.targetDate); setImporterExpanded(false);
+      setResponse(next); setSelectedDate(next.analysis.gapDrivers.targetDate); setImporterExpanded(false); setDataWorkspaceOpen(false);
     } catch (error) { setAnalysisError(error instanceof Error ? error.message : "CFO analizi oluşturulamadı."); }
     finally { setRunning(false); }
   }
   function loadDemo() {
-    setResponse(DEMO_RESPONSE); setDemoMode(true); setSelectedDate(DEMO_RESPONSE.analysis.gapDrivers.targetDate); setAnalysisError(null); setImporterExpanded(false);
+    setResponse(DEMO_RESPONSE); setDemoMode(true); setSelectedDate(DEMO_RESPONSE.analysis.gapDrivers.targetDate); setAnalysisError(null); setImporterExpanded(false); setDataWorkspaceOpen(false);
   }
   async function loadSamples() {
     setRunning(true); setAnalysisError(null); setDemoMode(false);
@@ -796,10 +810,10 @@ function App() {
       const sampleCurrentIds = imported.filter((item) => item.period === "current").map((item) => item.result.import.importId);
       const samplePreviousIds = imported.filter((item) => item.period === "previous").map((item) => item.result.import.importId);
       const nextResponse = await analyzeTreasury({ ...parameters, importIds: sampleCurrentIds, previousImportIds: samplePreviousIds });
-      setUploads(nextUploads); setResponse(nextResponse); setSelectedDate(nextResponse.analysis.gapDrivers.targetDate); setImporterExpanded(false);
+      setUploads(nextUploads); setResponse(nextResponse); setSelectedDate(nextResponse.analysis.gapDrivers.targetDate); setImporterExpanded(false); setDataWorkspaceOpen(false);
     } catch (error) {
       setAnalysisError(error instanceof Error ? error.message : "Örnek dosyalar analiz edilemedi.");
-      setImporterExpanded(true);
+      setImporterExpanded(true); setDataWorkspaceOpen(true);
     } finally {
       setRunning(false);
     }
@@ -821,14 +835,17 @@ function App() {
   }
   return <div className="app-shell">
     <aside className="sidebar">
-      <a className="brand" href="#top" aria-label="Corporate ALM Intelligence ana sayfa"><span className="brand-mark"><i /><i /><i /></span><span>Corporate<strong>ALM Intelligence</strong></span></a>
-      <nav aria-label="Ana navigasyon"><span className="nav-label">Aktif ALM modülü</span><a className="active" href="#top"><Icon name="grid" /> ALM Overview</a><a href="#importer"><Icon name="upload" /> Data & Positions</a><a href="#forecast"><Icon name="pulse" /> Liquidity Forecast</a><a href="#maturity-gap"><Icon name="changes" /> Maturity Gap</a><a href="#debt-funding"><Icon name="pulse" /> Debt & Funding</a><a href="#interest-rate-risk"><Icon name="settings" /> Interest Rate Risk</a><a href="#gap-drivers"><Icon name="calendar" /> Gap Drivers</a><a href="#what-changed"><Icon name="changes" /> What Changed</a></nav>
-      <div className="sidebar-foot"><a href="#importer"><Icon name="settings" /> Analiz ayarları</a><span><i /> API bağlı</span></div>
+      <a className="brand" href="#top" aria-label="Corporate ALM Intelligence ana sayfa"><span className="brand-mark"><i /><i /><i /></span><span>ALM<strong>IQ</strong></span></a>
+      <nav aria-label="Ana navigasyon"><a className="active" href="#top" title="Genel Bakış"><Icon name="grid" /><span>Genel</span></a><a href="#data-status" title="Veri ve Girdiler" onClick={() => setDataWorkspaceOpen(true)}><Icon name="upload" /><span>Veri</span></a><a href="#forecast" title="Likidite"><Icon name="pulse" /><span>Likidite</span></a><a href="#maturity-gap" title="Vade"><Icon name="changes" /><span>Vade</span></a><a href="#debt-funding" title="Fonlama"><Icon name="pulse" /><span>Fonlama</span></a><a href="#interest-rate-risk" title="Faiz"><Icon name="settings" /><span>Faiz</span></a></nav>
+      <div className="sidebar-foot"><span><i /> API</span></div>
     </aside>
     <main id="top">
-      <header className="topbar"><div><span className="eyebrow">CORPORATE LIQUIDITY & ASSET-LIABILITY MANAGEMENT</span><h1>ALM Intelligence</h1><span className="module-badge">Liquidity + Maturity + Funding + Rates · Phase 4</span></div><div className="report-context">{demoMode && <span className="demo-badge">DEMO</span>}<span><Icon name="calendar" />{response ? formatDate(response.analysis.asOfDate) : formatDate(parameters.asOfDate)}</span><span className="currency-badge">{response?.analysis.currency ?? parameters.currency}</span></div></header>
-      <Importer uploads={uploads} expanded={importerExpanded} parameters={parameters} running={running} error={analysisError} onToggle={() => setImporterExpanded((value) => !value)} onFile={handleFile} onParameter={handleParameter} onAnalyze={() => void runAnalysis()} onSamples={() => void loadSamples()} onDemo={loadDemo} />
-      <AlmPositionsPanel currency={parameters.currency} asOfDate={parameters.asOfDate} onSummaryChange={handlePositionSummary} />
+      <header className="topbar"><div className="topbar-title"><span className="eyebrow">Corporate Asset-Liability Management</span><h1>ALCO Command Center</h1></div><nav className="command-tabs" aria-label="ALM bölümleri"><a className="active" href="#top">Genel Bakış</a><a href="#forecast">Likidite</a><a href="#maturity-gap">Vade</a><a href="#debt-funding">Fonlama</a><a href="#interest-rate-risk">Faiz</a><a href="#data-status" onClick={() => setDataWorkspaceOpen(true)}>Veri</a></nav><div className="report-context">{demoMode && <span className="demo-badge">DEMO</span>}<span><Icon name="calendar" />{response ? formatDate(response.analysis.asOfDate) : formatDate(parameters.asOfDate)}</span><span className="currency-badge">{response?.analysis.currency ?? parameters.currency}</span><span className="scope-badge">Konsolide</span></div></header>
+      <div id="data-status"><DataStatusBar uploads={uploads} demoMode={demoMode} manualPositionCount={manualPositionCount} expanded={dataWorkspaceOpen} onToggle={() => setDataWorkspaceOpen((value) => !value)} /></div>
+      {dataWorkspaceOpen && <section className="data-workspace" id="data-workspace" aria-label="Veri ve manuel ALM girdileri">
+        <Importer uploads={uploads} expanded={importerExpanded} parameters={parameters} running={running} error={analysisError} onToggle={() => setImporterExpanded((value) => !value)} onFile={handleFile} onParameter={handleParameter} onAnalyze={() => void runAnalysis()} onSamples={() => void loadSamples()} onDemo={loadDemo} />
+        <AlmPositionsPanel currency={parameters.currency} asOfDate={parameters.asOfDate} onSummaryChange={handlePositionSummary} />
+      </section>}
       {response ? <Dashboard response={response} selectedDate={selectedDate} refreshingGap={refreshingGap} onDateSelect={(date) => void selectGapDate(date)} /> : <section className="welcome-state"><span className="welcome-icon"><Icon name="pulse" /></span><span className="eyebrow">LIQUIDITY MODULE</span><h2>ALM görünümünün kısa vadeli likidite katmanı</h2><p>CSV dosyalarınızı yükleyin, örnek dosyalarla gerçek pipeline’ı çalıştırın veya arayüzü görmek için demo veriyi açın.</p><button className="button-primary" onClick={loadDemo}><Icon name="spark" /> Demo cockpit’i aç</button></section>}
       <footer><span>Corporate ALM Intelligence · Deterministic balance-sheet analytics</span><span>Active modules: liquidity + maturity + funding + interest rate risk</span></footer>
     </main>

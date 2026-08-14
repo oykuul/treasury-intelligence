@@ -1,23 +1,26 @@
-@import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@600;700&display=swap");
 
 :root {
-  font-family: "DM Sans", system-ui, sans-serif;
-  color: #1b2634;
-  background: #f4f6f4;
+  font-family: "Inter", system-ui, sans-serif;
+  color: #f4f8f7;
+  background: #08151f;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
-  --navy: #0d1d2a;
-  --navy-soft: #172b39;
-  --ink: #1b2634;
-  --muted: #6c7b84;
-  --line: #dfe5e2;
-  --green: #16a67a;
-  --green-dark: #0b7958;
-  --green-soft: #e6f6f0;
-  --amber: #d8942b;
-  --red: #d94f5c;
-  --paper: #ffffff;
+  --navy: #07131c;
+  --navy-soft: #102431;
+  --ink: #f4f8f7;
+  --muted: #91a5ae;
+  --line: #24404d;
+  --green: #27c395;
+  --green-dark: #6de0bd;
+  --green-soft: rgba(39,195,149,.12);
+  --amber: #f0a72f;
+  --red: #f05c68;
+  --blue: #4f8fb3;
+  --cyan: #69d2e7;
+  --violet: #9a7cf8;
+  --paper: #102431;
 }
 
 * { box-sizing: border-box; }
