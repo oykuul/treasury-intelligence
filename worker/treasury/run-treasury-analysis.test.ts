@@ -196,6 +196,14 @@ describe(
         ).toBe(200);
 
         expect(
+          result.policyLimits.overallStatus,
+        ).toBe("BREACH");
+
+        expect(
+          result.policyLimits.checks,
+        ).toHaveLength(6);
+
+        expect(
           result.executiveOverview.pillars,
         ).toHaveLength(6);
       },

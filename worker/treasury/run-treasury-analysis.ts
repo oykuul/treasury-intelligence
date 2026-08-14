@@ -41,6 +41,11 @@ import {
   buildFundingPlan,
   type FundingPlanResult,
 } from "../alm/build-funding-plan";
+import {
+  buildPolicyLimits,
+  type PolicyLimitsResult,
+  type PolicyLimitThresholds,
+} from "../alm/build-policy-limits";
 import type {
   AlmPosition,
 } from "../alm/positions";
@@ -61,6 +66,8 @@ export type TreasuryAnalysisInput = {
   gapTargetDate?: string;
 
   scenarios?: StressScenarioDefinition[];
+
+  policyLimits?: Partial<PolicyLimitThresholds>;
 };
 
 export type TreasuryAnalysisResult = {
@@ -77,6 +84,7 @@ export type TreasuryAnalysisResult = {
   debtFunding: DebtFundingResult;
   interestRateRisk: InterestRateRiskResult;
   fundingPlan: FundingPlanResult;
+  policyLimits: PolicyLimitsResult;
   executiveOverview: AlmExecutiveOverviewResult;
 };
 
@@ -325,6 +333,19 @@ export function runTreasuryAnalysis(
         input.minimumLiquidityBuffer,
     });
 
+  const policyLimits =
+    buildPolicyLimits({
+      metrics,
+      debtFunding,
+      interestRateRisk,
+      fundingPlan,
+      thresholds: {
+        minimumLiquidityBuffer:
+          input.minimumLiquidityBuffer,
+        ...input.policyLimits,
+      },
+    });
+
   const executiveOverview =
     buildAlmExecutiveOverview({
       currency:
@@ -365,6 +386,7 @@ export function runTreasuryAnalysis(
     debtFunding,
     interestRateRisk,
     fundingPlan,
+    policyLimits,
     executiveOverview,
   };
 }
