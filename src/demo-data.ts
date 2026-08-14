@@ -1,4 +1,5 @@
 import type {
+  FundingPlan,
   FundingMaturityBucket,
   MaturityGapBucket,
   RepricingBucket,
@@ -415,6 +416,99 @@ const demoFundingBuckets:
         instruments: [],
       }),
     );
+
+function buildDemoFundingPlan(): FundingPlan {
+  const policyBuffer = 15_000_000;
+  const availableFacilities = 70_000_000;
+  let cumulativeFacilityDraw = 0;
+  let firstActionDate: string | null = null;
+  let peakFundingBucketId: string | null = null;
+
+  const buckets = demoMaturityBuckets
+    .filter((bucket) => bucket.id !== "over12m")
+    .map((bucket) => {
+      const incrementalFacilityDraw = Math.min(
+        Math.max(
+          0,
+          policyBuffer -
+            (bucket.cumulativeGap + cumulativeFacilityDraw),
+        ),
+        availableFacilities - cumulativeFacilityDraw,
+      );
+      cumulativeFacilityDraw += incrementalFacilityDraw;
+      if (incrementalFacilityDraw > 0) {
+        firstActionDate ??= bucket.startDate ?? "2026-08-14";
+        peakFundingBucketId = bucket.id;
+      }
+
+      return {
+        bucketId: bucket.id,
+        label: bucket.label,
+        startDate: bucket.startDate,
+        endDate: bucket.endDate,
+        contractualLiquidity: bucket.cumulativeGap,
+        targetLiquidity: policyBuffer,
+        incrementalFacilityDraw,
+        cumulativeFacilityDraw,
+        incrementalExternalFunding: 0,
+        cumulativeExternalFunding: 0,
+        liquidityAfterPlan:
+          bucket.cumulativeGap + cumulativeFacilityDraw,
+        facilityHeadroomRemaining:
+          availableFacilities - cumulativeFacilityDraw,
+      };
+    });
+
+  return {
+    currency: "TRY",
+    asOfDate: "2026-08-14",
+    horizonEndDate: "2027-08-14",
+    status: "FACILITY_DRAW_REQUIRED",
+    policyBuffer,
+    availableFacilities,
+    totalFundingRequirement: cumulativeFacilityDraw,
+    plannedFacilityDraw: cumulativeFacilityDraw,
+    externalFundingNeed: 0,
+    firstActionDate,
+    firstExternalFundingDate: null,
+    peakFundingBucketId,
+    minimumLiquidityAfterPlan: Math.min(
+      ...buckets.map((bucket) => bucket.liquidityAfterPlan),
+    ),
+    buckets,
+    actions: [
+      {
+        priority: 1,
+        actionType: "RESERVE_COMMITTED_FACILITIES",
+        severity: "WATCH",
+        amount: cumulativeFacilityDraw,
+        dueDate: firstActionDate,
+        bucketId: peakFundingBucketId,
+        reason: "Committed capacity must be reserved to protect the minimum liquidity buffer.",
+      },
+      {
+        priority: 2,
+        actionType: "REFINANCE_MATURITY_WALL",
+        severity: "ACTION_REQUIRED",
+        amount: 60_000_000,
+        dueDate: "2027-05-14",
+        bucketId: "Q4",
+        reason: "A material debt maturity wall falls inside the 12-month planning horizon.",
+      },
+      {
+        priority: 3,
+        actionType: "DIVERSIFY_LENDERS",
+        severity: "WATCH",
+        amount: null,
+        dueDate: null,
+        bucketId: null,
+        reason: "The top three lenders represent at least 75% of modeled funding capacity.",
+      },
+    ],
+  };
+}
+
+const demoFundingPlan = buildDemoFundingPlan();
 
 const demoRepricingValues = [
   {
@@ -904,6 +998,8 @@ export const DEMO_RESPONSE:
           },
         ],
       },
+
+      fundingPlan: demoFundingPlan,
 
       executiveOverview: {
         currency: "TRY",

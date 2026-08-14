@@ -22,6 +22,8 @@ import type {
   DebtFunding,
   ExecutivePillarId,
   ExecutiveStatus,
+  FundingPlan,
+  FundingPlanActionType,
   GapDrivers,
   InterestRateRisk,
   MaturityGap,
@@ -623,6 +625,60 @@ function InterestRateRiskPanel({
   </section>;
 }
 
+const FUNDING_ACTION_LABELS: Record<FundingPlanActionType, string> = {
+  RAISE_EXTERNAL_FUNDING: "Vadeli finansman sağla",
+  RESERVE_COMMITTED_FACILITIES: "Taahhütlü limitleri rezerve et",
+  REFINANCE_MATURITY_WALL: "Vade duvarını refinanse et",
+  DIVERSIFY_LENDERS: "Lender tabanını çeşitlendir",
+};
+
+const FUNDING_ACTION_DETAILS: Record<FundingPlanActionType, string> = {
+  RAISE_EXTERNAL_FUNDING: "Politika tamponunu korumak için limit dışı finansmanı kesinleştir.",
+  RESERVE_COMMITTED_FACILITIES: "Planlanan dönem için kullanılabilir limit kapasitesini ayır.",
+  REFINANCE_MATURITY_WALL: "Yoğun vade döneminden önce borç yenileme görüşmelerini tamamla.",
+  DIVERSIFY_LENDERS: "İlk üç lender yoğunluğunu alternatif kapasiteyle azalt.",
+};
+
+function FundingPlanPanel({ plan }: { plan: FundingPlan }) {
+  const externalRequired = plan.externalFundingNeed > 0;
+  const facilityRequired = plan.plannedFacilityDraw > 0;
+  const status = externalRequired
+    ? {
+        tone: "status-negative",
+        title: "Dış finansman aksiyonu gerekli",
+        sentence: `${formatMoney(plan.plannedFacilityDraw, plan.currency)} limit kullanımından sonra ${formatMoney(plan.externalFundingNeed, plan.currency)} ek finansman gerekiyor.`,
+      }
+    : facilityRequired
+      ? {
+          tone: "status-warning",
+          title: "Taahhütlü limit rezervasyonu gerekli",
+          sentence: `${formatMoney(plan.plannedFacilityDraw, plan.currency)} kullanılabilir limit rezerve edilirse politika tamponu korunuyor.`,
+        }
+      : {
+          tone: "status-positive",
+          title: "Fonlama planı dengeli",
+          sentence: "Sözleşmesel nakit akışları politika tamponunu ek fonlama olmadan koruyor.",
+        };
+
+  return <section className="panel funding-plan-panel" id="funding-plan">
+    <div className="section-heading">
+      <div><span className="eyebrow">12 aylık aksiyon planı</span><h2>Funding Plan &amp; Recommendations</h2><p>Sözleşmesel likidite açığının taahhütlü limit ve dış finansmanla hangi dönemde kapatılacağı</p></div>
+      <span className={`funding-plan-badge plan-${plan.status.toLowerCase()}`}>{plan.status === "FUNDED" ? "Fonlanmış" : plan.status === "FACILITY_DRAW_REQUIRED" ? "Limit kullanımı" : "Dış finansman"}</span>
+    </div>
+    <div className="funding-plan-summary">
+      <MetricCard label="Toplam fonlama ihtiyacı" value={formatMoney(plan.totalFundingRequirement, plan.currency)} tone={plan.totalFundingRequirement > 0 ? "warning" : "positive"} />
+      <MetricCard label="Planlanan limit kullanımı" value={formatMoney(plan.plannedFacilityDraw, plan.currency)} tone={plan.plannedFacilityDraw > 0 ? "warning" : "positive"} />
+      <MetricCard label="Dış finansman ihtiyacı" value={formatMoney(plan.externalFundingNeed, plan.currency)} tone={externalRequired ? "negative" : "positive"} />
+      <MetricCard label="İlk aksiyon tarihi" value={formatDate(plan.firstActionDate)} detail={plan.peakFundingBucketId ?? "Aksiyon yok"} tone={plan.firstActionDate ? "warning" : "positive"} />
+    </div>
+    <div className={`funding-plan-status ${status.tone}`}><strong>{status.title}</strong><span>{status.sentence}</span></div>
+    <div className="funding-plan-layout">
+      <div className="funding-plan-actions"><h3>Önerilen aksiyonlar</h3>{plan.actions.length > 0 ? <ol>{plan.actions.map((action) => <li key={`${action.priority}-${action.actionType}`}><b>{action.priority}</b><div><strong>{FUNDING_ACTION_LABELS[action.actionType]}</strong><p>{FUNDING_ACTION_DETAILS[action.actionType]}</p><small>{action.dueDate ? `${formatDate(action.dueDate)} tarihine kadar` : "Yönetim planlama döneminde"}</small></div>{action.amount !== null && <span>{formatMoney(action.amount, plan.currency)}</span>}</li>)}</ol> : <p className="command-empty">Açık fonlama aksiyonu bulunmuyor.</p>}</div>
+      <div className="table-scroll funding-plan-table-wrap"><table className="funding-plan-table"><thead><tr><th>Dönem</th><th>Sözleşmesel likidite</th><th>Yeni limit kullanımı</th><th>Yeni dış finansman</th><th>Plan sonrası likidite</th><th>Kalan limit</th></tr></thead><tbody>{plan.buckets.map((bucket) => <tr key={bucket.bucketId}><td><strong>{bucket.label}</strong><small>{formatDate(bucket.startDate)}</small></td><td className={bucket.contractualLiquidity < plan.policyBuffer ? "negative-value" : "positive-value"}>{formatMoney(bucket.contractualLiquidity, plan.currency)}</td><td className="warning-value">{formatMoney(bucket.incrementalFacilityDraw, plan.currency)}</td><td className={bucket.incrementalExternalFunding > 0 ? "negative-value" : ""}>{formatMoney(bucket.incrementalExternalFunding, plan.currency)}</td><td className="positive-value">{formatMoney(bucket.liquidityAfterPlan, plan.currency)}</td><td>{formatMoney(bucket.facilityHeadroomRemaining, plan.currency)}</td></tr>)}</tbody></table></div>
+    </div>
+  </section>;
+}
+
 function ChangesPanel({ response }: { response: TreasuryAnalysisResponse }) {
   const changes = response.changes;
   return <section className="panel changes-panel" id="what-changed">
@@ -657,15 +713,6 @@ const EXECUTIVE_PILLAR_LABELS: Record<ExecutivePillarId, string> = {
   DATA: "Veri kapsamı",
 };
 
-const EXECUTIVE_ACTIONS: Record<ExecutivePillarId, string> = {
-  LIQUIDITY: "Likidite açığını ihlal tarihinden önce kapat.",
-  STRESS: "Kontenjan fonlama ve tahsilat hızlandırma tetiklerini hazırla.",
-  MATURITY: "Vade açığını vadeli fonlama veya nakit akışı aksiyonuyla kapat.",
-  FUNDING: "12 aylık refinansman planını başlat ve lender kapasitesini çeşitlendir.",
-  RATE: "Sabit/değişken hedefini belirle ve kısa vadeli repricing riskini azalt.",
-  DATA: "Eksik tutar, vade, faiz tipi ve oran alanlarını tamamla.",
-};
-
 function CommandKpi({ label, value, detail, tone }: {
   label: string;
   value: string;
@@ -677,7 +724,7 @@ function CommandKpi({ label, value, detail, tone }: {
 
 function ExecutiveOverviewPanel({ response }: { response: TreasuryAnalysisResponse }) {
   const { analysis } = response;
-  const { executiveOverview: overview, metrics, maturityGap, debtFunding, interestRateRisk, stress } = analysis;
+  const { executiveOverview: overview, metrics, maturityGap, debtFunding, interestRateRisk, fundingPlan, stress } = analysis;
   const plusTwoHundred = interestRateRisk.sensitivityScenarios.find((scenario) => scenario.shockBps === 200);
   const headline = overview.status === "CRITICAL"
     ? "Acil ALM aksiyonu gerekiyor."
@@ -687,7 +734,7 @@ function ExecutiveOverviewPanel({ response }: { response: TreasuryAnalysisRespon
         ? "Pozisyon fonlanmış durumda; temel risk limitleri izlenmeli."
         : "ALM pozisyonu modellenen politika aralığında.";
   const dominantRisk = overview.dominantRiskPillar ? EXECUTIVE_PILLAR_LABELS[overview.dominantRiskPillar] : "Belirgin risk yok";
-  const actions = overview.priorityActions.slice(0, 4);
+  const actions = fundingPlan.actions.slice(0, 4);
   const lenders = debtFunding.lenders.slice(0, 5);
 
   return <section className={`alco-command executive-${overview.status.toLowerCase()}`} aria-labelledby="executive-title">
@@ -711,7 +758,7 @@ function ExecutiveOverviewPanel({ response }: { response: TreasuryAnalysisRespon
         <article className="command-panel command-funding"><header><div><span>36 aylık görünüm</span><h3>Funding Wall</h3></div><strong className="risk">{formatMoney(debtFunding.largestMaturityWall, analysis.currency)}</strong></header><DebtWallChart funding={debtFunding} /></article>
         <article className="command-panel command-repricing"><header><div><span>Faiz yapısı</span><h3>Repricing Profili</h3></div><strong className="warning">%{interestRateRisk.floatingRateSharePercent.toFixed(1)} değişken</strong></header><RepricingChart risk={interestRateRisk} /></article>
       </div>
-      <article className="command-panel command-actions"><header><div><span>Karar kuyruğu</span><h3>Öncelikli Aksiyonlar</h3></div><b>{actions.length}</b></header>{actions.length > 0 ? <ol>{actions.map((action) => <li key={action.priority}><b>{action.priority}</b><div><strong>{EXECUTIVE_PILLAR_LABELS[action.pillarId]}</strong><p>{EXECUTIVE_ACTIONS[action.pillarId]}</p></div>{action.impactAmount !== null && action.impactAmount > 0 && <span>{formatMoney(action.impactAmount, analysis.currency)}</span>}</li>)}</ol> : <p className="command-empty">Açık yönetim aksiyonu bulunmuyor.</p>}<a href="#detail-analyses">Detay analizlere git →</a></article>
+      <article className="command-panel command-actions"><header><div><span>12 aylık aksiyon planı</span><h3>Funding Plan</h3></div><b>{actions.length}</b></header>{actions.length > 0 ? <ol>{actions.map((action) => <li key={`${action.priority}-${action.actionType}`}><b>{action.priority}</b><div><strong>{FUNDING_ACTION_LABELS[action.actionType]}</strong><p>{FUNDING_ACTION_DETAILS[action.actionType]}{action.dueDate ? ` Son tarih: ${formatDate(action.dueDate)}.` : ""}</p></div>{action.amount !== null && action.amount > 0 && <span>{formatMoney(action.amount, analysis.currency)}</span>}</li>)}</ol> : <p className="command-empty">Açık fonlama aksiyonu bulunmuyor.</p>}<a href="#funding-plan">Funding plan detayına git →</a></article>
       <article className="command-panel command-stress"><header><div><span>90 günlük dayanım</span><h3>Stres Matrisi</h3></div></header><div className="command-table"><div className="command-table-head"><span>Senaryo</span><span>Minimum nakit</span><span>Fonlama</span><span>İhlal</span></div>{stress.scenarios.map((scenario) => <div className={`command-table-row command-scenario-${scenario.name.toLowerCase()}`} key={scenario.name}><strong><i />{scenario.label}</strong><span className={scenario.minimumLiquidity < 0 ? "risk" : "safe"}>{formatMoney(scenario.minimumLiquidity, analysis.currency)}</span><span>{formatMoney(scenario.fundingNeed, analysis.currency)}</span><span>{scenario.firstThresholdBreachDate ? formatDate(scenario.firstThresholdBreachDate) : "—"}</span></div>)}</div></article>
       <article className="command-panel command-lenders"><header><div><span>Fonlama kaynakları</span><h3>Lender Yoğunlaşması</h3></div><strong className={debtFunding.top3LenderConcentration > 70 ? "warning" : "safe"}>%{debtFunding.top3LenderConcentration.toFixed(1)}</strong></header>{lenders.map((lender) => <div className="command-lender-row" key={lender.lender}><div><strong>{lender.lender}</strong><small>{formatMoney(lender.debtOutstanding, analysis.currency)} borç · {formatMoney(lender.availableFacilities, analysis.currency)} boş limit</small></div><span><i style={{ width: `${Math.min(100, lender.sharePercent)}%` }} /></span><b>%{lender.sharePercent.toFixed(1)}</b></div>)}</article>
     </div>
@@ -721,7 +768,7 @@ function ExecutiveOverviewPanel({ response }: { response: TreasuryAnalysisRespon
 
 function Dashboard({ response, selectedDate, refreshingGap, onDateSelect }: { response: TreasuryAnalysisResponse; selectedDate: string; refreshingGap: boolean; onDateSelect: (date: string) => void }) {
   const { analysis } = response;
-  const { stress, gapDrivers, maturityGap, debtFunding, interestRateRisk } = analysis;
+  const { stress, gapDrivers, maturityGap, debtFunding, interestRateRisk, fundingPlan } = analysis;
   return <>
     <ExecutiveOverviewPanel response={response} />
     <section className="detail-heading" id="detail-analyses"><div><span className="eyebrow">Analitik çalışma alanı</span><h2>Detay Analizler</h2></div><p>Yönetim özetindeki risk ve aksiyonların hesaplama katmanları</p></section>
@@ -734,6 +781,7 @@ function Dashboard({ response, selectedDate, refreshingGap, onDateSelect }: { re
     <MaturityGapPanel gap={maturityGap} />
     <DebtFundingPanel funding={debtFunding} />
     <InterestRateRiskPanel risk={interestRateRisk} />
+    <FundingPlanPanel plan={fundingPlan} />
     <GapDriverPanel gap={gapDrivers} />
     <ChangesPanel response={response} />
   </>;

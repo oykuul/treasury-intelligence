@@ -188,6 +188,14 @@ describe(
         ).toBe(0);
 
         expect(
+          result.fundingPlan.status,
+        ).toBe("EXTERNAL_FUNDING_REQUIRED");
+
+        expect(
+          result.fundingPlan.externalFundingNeed,
+        ).toBe(200);
+
+        expect(
           result.executiveOverview.pillars,
         ).toHaveLength(6);
       },
