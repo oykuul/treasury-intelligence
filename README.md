@@ -2,7 +2,7 @@
 
 Treasury Intelligence turns treasury source files into a deterministic 90-day liquidity view for finance teams.
 
-## Current backend scope
+## Current product scope
 
 - CSV ingestion and automatic column mapping, including SAP aliases
 - Data-quality checks and persisted issue records
@@ -15,6 +15,12 @@ Treasury Intelligence turns treasury source files into a deterministic 90-day li
 - What Changed record comparison
 - Forecast movement reconciliation and attribution bridge
 - Gap Drivers and counterparty concentration
+- Responsive CFO Liquidity Cockpit connected to the analysis API
+- Universal Data Importer UI with current/previous-period uploads, mapping review, quality findings, and reconciliation status
+- Interactive Base/Moderate/Severe chart with date-level Gap Drivers drill-down
+- CFO metric strip, deterministic verdict, stress comparison, and What Changed movement bridge
+
+The cockpit opens with the data importer. Upload one or more current-period CSVs and run the analysis, or use **Demo veriyi yükle** to explore the complete interface without persisted imports. Previous-period files are optional and enable What Changed.
 
 ## Local commands
 
