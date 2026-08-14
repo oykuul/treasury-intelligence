@@ -18,9 +18,10 @@ import {
 import type {
   AnalysisParameters,
   AlmPositionSummary,
-  CfoMetrics,
   DatasetType,
   DebtFunding,
+  ExecutivePillarId,
+  ExecutiveStatus,
   GapDrivers,
   InterestRateRisk,
   MaturityGap,
@@ -93,19 +94,6 @@ function formatDate(date: string | null): string {
     month: "short",
     year: "numeric",
   }).format(new Date(`${date}T00:00:00Z`));
-}
-
-function getVerdictSentence(metrics: CfoMetrics): string {
-  if (metrics.fundingNeed90D > 0) {
-    return `90 günlük görünümde ${formatMoney(metrics.fundingNeed90D, metrics.currency)} ek fonlama gerekiyor; aksiyon planı bugün devreye alınmalı.`;
-  }
-  if (metrics.minimumForecastCash < 0) {
-    return "Likidite açığı var; taahhütlü limitler açığı karşılıyor, ancak tampon politika seviyesinin altında.";
-  }
-  if (metrics.liquidityHeadroom <= 0) {
-    return "Nakit pozitif kalıyor, ancak politika tamponu aşılıyor; tahsilat ve ödeme takvimi yakından izlenmeli.";
-  }
-  return "Likidite görünümü sağlıklı; taahhütlü limitler kullanılmadan politika tamponunun üzerinde kalınıyor.";
 }
 
 type IconName = "grid" | "upload" | "pulse" | "changes" | "settings" | "chevron" | "spark" | "calendar";
@@ -630,21 +618,100 @@ function ChangesPanel({ response }: { response: TreasuryAnalysisResponse }) {
   </section>;
 }
 
+const EXECUTIVE_STATUS_LABELS: Record<ExecutiveStatus, string> = {
+  HEALTHY: "Sağlıklı",
+  WATCH: "İzle",
+  ACTION_REQUIRED: "Aksiyon gerekli",
+  CRITICAL: "Kritik",
+};
+
+const EXECUTIVE_PILLAR_LABELS: Record<ExecutivePillarId, string> = {
+  LIQUIDITY: "Likidite",
+  STRESS: "Stres dayanımı",
+  MATURITY: "Vade uyumu",
+  FUNDING: "Fonlama",
+  RATE: "Faiz riski",
+  DATA: "Veri kapsamı",
+};
+
+const EXECUTIVE_PILLAR_LINKS: Record<ExecutivePillarId, string> = {
+  LIQUIDITY: "#forecast",
+  STRESS: "#forecast",
+  MATURITY: "#maturity-gap",
+  FUNDING: "#debt-funding",
+  RATE: "#interest-rate-risk",
+  DATA: "#importer",
+};
+
+const EXECUTIVE_ACTIONS: Record<ExecutivePillarId, string> = {
+  LIQUIDITY: "Likidite açığını ihlal tarihinden önce kapat.",
+  STRESS: "Kontenjan fonlama ve tahsilat hızlandırma tetiklerini hazırla.",
+  MATURITY: "Vade açığını vadeli fonlama veya nakit akışı aksiyonuyla kapat.",
+  FUNDING: "12 aylık refinansman planını başlat ve lender kapasitesini çeşitlendir.",
+  RATE: "Sabit/değişken hedefini belirle ve kısa vadeli repricing riskini azalt.",
+  DATA: "Eksik tutar, vade, faiz tipi ve oran alanlarını tamamla.",
+};
+
+function ExecutiveOverviewPanel({ response }: { response: TreasuryAnalysisResponse }) {
+  const { analysis } = response;
+  const { executiveOverview: overview, metrics, maturityGap, debtFunding, interestRateRisk, stress } = analysis;
+  const severe = stress.scenarios.find((scenario) => scenario.name === "SEVERE");
+  const plusTwoHundred = interestRateRisk.sensitivityScenarios.find((scenario) => scenario.shockBps === 200);
+  const headline = overview.status === "CRITICAL"
+    ? "Acil ALM aksiyonu gerekiyor."
+    : overview.status === "ACTION_REQUIRED"
+      ? "12 aylık ALM profili yönetim aksiyonu gerektiriyor."
+      : overview.status === "WATCH"
+        ? "Pozisyon fonlanmış durumda; temel risk limitleri izlenmeli."
+        : "ALM pozisyonu modellenen politika aralığında.";
+  const pillarValues: Record<ExecutivePillarId, { value: string; detail: string }> = {
+    LIQUIDITY: { value: formatMoney(metrics.minimumForecastCash, analysis.currency), detail: `Minimum nakit · ${formatDate(metrics.minimumForecastCashDate)}` },
+    STRESS: { value: formatMoney(severe?.minimumLiquidity ?? 0, analysis.currency), detail: "Severe senaryo minimumu" },
+    MATURITY: { value: formatMoney(maturityGap.residualFundingNeed, analysis.currency), detail: "Limit sonrası açık" },
+    FUNDING: { value: formatMoney(debtFunding.refinancingNeed12M, analysis.currency), detail: "12A refinansman açığı" },
+    RATE: { value: `+${formatMoney(plusTwoHundred?.annualizedInterestIncrease ?? 0, analysis.currency)}`, detail: "+200 bp yıllık etki" },
+    DATA: { value: String(overview.dataQualityFindings), detail: "Açıklanan veri bulgusu" },
+  };
+  const keyMetrics = [
+    ["Kullanılabilir likidite", metrics.availableLiquidity],
+    ["Minimum tahmini nakit", metrics.minimumForecastCash],
+    ["12A vade açığı", maturityGap.residualFundingNeed],
+    ["12A refinansman açığı", debtFunding.refinancingNeed12M],
+    ["12A repricing exposure", interestRateRisk.repricingExposure12M],
+    ["Yıllık faiz gideri", interestRateRisk.currentAnnualInterestExpense],
+  ] as const;
+
+  return <section className={`executive-overview executive-${overview.status.toLowerCase()}`} aria-labelledby="executive-title">
+    <div className="executive-hero">
+      <div>
+        <span className="eyebrow">Executive ALM Overview</span>
+        <h2 id="executive-title">{headline}</h2>
+        <p>{overview.statusCounts.CRITICAL + overview.statusCounts.ACTION_REQUIRED} aksiyon alanı, {overview.statusCounts.WATCH} izleme alanı · Baskın risk: {overview.dominantRiskPillar ? EXECUTIVE_PILLAR_LABELS[overview.dominantRiskPillar] : "Yok"}</p>
+      </div>
+      <span className="executive-status">{EXECUTIVE_STATUS_LABELS[overview.status]}</span>
+    </div>
+    <div className="executive-kpis" aria-label="Temel ALM metrikleri">
+      {keyMetrics.map(([label, value]) => <div key={label}><span>{label}</span><strong>{formatMoney(value, analysis.currency)}</strong></div>)}
+    </div>
+    <div className="executive-pillar-grid">
+      {overview.pillars.map((pillar) => <a key={pillar.id} href={EXECUTIVE_PILLAR_LINKS[pillar.id]} className={`executive-pillar pillar-${pillar.status.toLowerCase()}`}>
+        <div><span>{EXECUTIVE_PILLAR_LABELS[pillar.id]}</span><b>{EXECUTIVE_STATUS_LABELS[pillar.status]}</b></div>
+        <strong>{pillarValues[pillar.id].value}</strong>
+        <small>{pillarValues[pillar.id].detail}</small>
+      </a>)}
+    </div>
+    {overview.priorityActions.length > 0 && <div className="executive-actions">
+      <span>Öncelikli aksiyonlar</span>
+      <ol>{overview.priorityActions.map((action) => <li key={action.priority}><b>{action.priority}</b><p><strong>{EXECUTIVE_PILLAR_LABELS[action.pillarId]}</strong>{EXECUTIVE_ACTIONS[action.pillarId]}</p>{action.impactAmount !== null && action.impactAmount > 0 && <span>{formatMoney(action.impactAmount, analysis.currency)}</span>}</li>)}</ol>
+    </div>}
+  </section>;
+}
+
 function Dashboard({ response, selectedDate, refreshingGap, onDateSelect }: { response: TreasuryAnalysisResponse; selectedDate: string; refreshingGap: boolean; onDateSelect: (date: string) => void }) {
   const { analysis } = response;
-  const { metrics, stress, gapDrivers, maturityGap, debtFunding, interestRateRisk } = analysis;
-  const metricsList = [
-    { label: "Kullanılabilir likidite", value: metrics.availableLiquidity, tone: "positive" as const },
-    { label: "Minimum tahmini nakit", value: metrics.minimumForecastCash, detail: formatDate(metrics.minimumForecastCashDate), tone: metrics.minimumForecastCash < 0 ? "negative" as const : "neutral" as const },
-    { label: "Likidite headroom", value: metrics.liquidityHeadroom, tone: metrics.liquidityHeadroom < 0 ? "negative" as const : "positive" as const },
-    { label: "30G fonlama ihtiyacı", value: metrics.fundingNeed30D, tone: metrics.fundingNeed30D > 0 ? "negative" as const : "neutral" as const },
-    { label: "90G fonlama ihtiyacı", value: metrics.fundingNeed90D, tone: metrics.fundingNeed90D > 0 ? "negative" as const : "neutral" as const },
-    { label: "Riskli alacaklar", value: metrics.receivablesAtRisk, tone: "warning" as const },
-    { label: "90G vadesi gelen borç", value: metrics.debtDue90D, tone: "neutral" as const },
-  ];
+  const { stress, gapDrivers, maturityGap, debtFunding, interestRateRisk } = analysis;
   return <>
-    <section className="metrics-grid" aria-label="CFO temel metrikleri">{metricsList.map((metric) => <MetricCard key={metric.label} label={metric.label} value={formatMoney(metric.value, metrics.currency)} detail={metric.detail} tone={metric.tone} />)}</section>
-    <section className={`verdict-strip verdict-${analysis.verdict.verdict.toLowerCase()}`}><span className="verdict-label">CFO VERDICT</span><p>{getVerdictSentence(metrics)}</p><span className="verdict-status">{analysis.verdict.verdict.replaceAll("_", " ")}</span></section>
+    <ExecutiveOverviewPanel response={response} />
     <section className="panel forecast-panel" id="forecast">
       <div className="section-heading"><div><span className="eyebrow">90 günlük görünüm</span><h2>Likidite ve stres senaryoları</h2><p>Grafikte bir güne tıklayarak o günün Gap Drivers analizini açın.</p></div><div className="legend">{stress.scenarios.map((scenario) => <span key={scenario.name}><i className={`scenario-${scenario.name.toLowerCase()}`} />{scenario.label}</span>)}</div></div>
       <StressChart scenarios={stress.scenarios} threshold={stress.minimumLiquidityThreshold} selectedDate={selectedDate} onDateSelect={onDateSelect} />

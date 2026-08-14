@@ -60,7 +60,7 @@ export default {
       return Response.json({
         status: "ok",
         service: "treasury-intelligence-api",
-        version: "0.10.0",
+        version: "0.11.0",
         database: "connected",
       });
     }

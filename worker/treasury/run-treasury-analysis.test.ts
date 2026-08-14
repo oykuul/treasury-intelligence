@@ -186,6 +186,10 @@ describe(
         expect(
           result.interestRateRisk.totalInterestBearingDebt,
         ).toBe(0);
+
+        expect(
+          result.executiveOverview.pillars,
+        ).toHaveLength(6);
       },
     );
 

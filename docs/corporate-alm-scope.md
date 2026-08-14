@@ -55,4 +55,4 @@ Manual entry uses the same canonical contracts as imported files, so manually en
 4. Build the 12-month maturity ladder and cumulative gap. **Delivered in v0.8.0.**
 5. Add debt/funding profile and lender concentration. **Delivered in v0.9.0.**
 6. Add repricing gap and interest-rate sensitivity. **Delivered in v0.10.0.**
-7. Consolidate every module into the Executive ALM Overview.
+7. Consolidate every module into the Executive ALM Overview. **Delivered in v0.11.0.**
