@@ -74,6 +74,20 @@ describe(
     );
 
     it(
+      "rejects non-string form values",
+      () => {
+        expect(
+          parseSourceType({}),
+        ).toEqual({
+          valid: false,
+          sourceType: null,
+          error:
+            "sourceType is required.",
+        });
+      },
+    );
+
+    it(
       "rejects unknown dataset types",
       () => {
         expect(
