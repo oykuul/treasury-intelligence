@@ -170,6 +170,14 @@ describe(
         expect(
           result.gapDrivers.projectedCash,
         ).toBe(-200);
+
+        expect(
+          result.maturityGap.buckets,
+        ).toHaveLength(14);
+
+        expect(
+          result.maturityGap.totalLiabilities12M,
+        ).toBe(1_600);
       },
     );
 

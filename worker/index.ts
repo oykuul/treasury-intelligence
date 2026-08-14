@@ -60,7 +60,7 @@ export default {
       return Response.json({
         status: "ok",
         service: "treasury-intelligence-api",
-        version: "0.7.0",
+        version: "0.8.0",
         database: "connected",
       });
     }
@@ -623,9 +623,60 @@ export default {
                 body.importIds,
               );
 
+        const allPositions =
+          await listAlmPositions(
+            env.DB,
+            DEV_ORG_ID,
+          );
+        const eligiblePositions =
+          allPositions.filter(
+            (position) =>
+              position.currency
+                .trim()
+                .toUpperCase() ===
+                body.currency
+                  .trim()
+                  .toUpperCase() &&
+              position.asOfDate <=
+                body.asOfDate,
+          );
+        const latestPositionDate =
+          eligiblePositions.reduce(
+            (latest, position) =>
+              position.asOfDate > latest
+                ? position.asOfDate
+                : latest,
+            "",
+          );
+        const positions =
+          latestPositionDate
+            ? eligiblePositions.filter(
+                (position) =>
+                  position.asOfDate ===
+                  latestPositionDate,
+              )
+            : [];
+        const positionSummary =
+          summarizeAlmPositions(
+            positions,
+            body.currency,
+          );
+        const hasManualPositions =
+          positions.length > 0;
+        const openingLiquidity =
+          hasManualPositions
+            ? positionSummary.availableCash
+            : body.openingLiquidity;
+        const availableFacilities =
+          hasManualPositions
+            ? positionSummary.availableFacilities
+            : body.unusedCommittedFacilities;
+
         const analysis =
           runTreasuryAnalysis({
             datasets,
+
+            positions,
 
             currency:
               body.currency,
@@ -634,10 +685,10 @@ export default {
               body.asOfDate,
 
             openingLiquidity:
-              body.openingLiquidity,
+              openingLiquidity,
 
             unusedCommittedFacilities:
-              body.unusedCommittedFacilities,
+              availableFacilities,
 
             minimumLiquidityBuffer:
               body.minimumLiquidityBuffer,

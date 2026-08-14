@@ -21,9 +21,17 @@ import {
   type StressScenarioComparison,
   type StressScenarioDefinition,
 } from "./run-stress-scenarios";
+import {
+  buildMaturityGap,
+  type MaturityGapResult,
+} from "../alm/build-maturity-gap";
+import type {
+  AlmPosition,
+} from "../alm/positions";
 
 export type TreasuryAnalysisInput = {
   datasets: TreasuryDataset[];
+  positions?: AlmPosition[];
 
   currency: string;
   asOfDate: string;
@@ -49,6 +57,7 @@ export type TreasuryAnalysisResult = {
   verdict: CfoVerdictResult;
   stress: StressScenarioComparison;
   gapDrivers: GapDriversResult;
+  maturityGap: MaturityGapResult;
 };
 
 function parseIsoDate(
@@ -237,6 +246,27 @@ export function runTreasuryAnalysis(
         gapTargetDate,
     });
 
+  const maturityGap =
+    buildMaturityGap({
+      datasets:
+        input.datasets,
+
+      positions:
+        input.positions,
+
+      currency:
+        input.currency,
+
+      asOfDate:
+        input.asOfDate,
+
+      openingLiquidity:
+        input.openingLiquidity,
+
+      availableFacilities:
+        input.unusedCommittedFacilities,
+    });
+
   return {
     currency:
       forecast.currency,
@@ -251,5 +281,6 @@ export function runTreasuryAnalysis(
     verdict,
     stress,
     gapDrivers,
+    maturityGap,
   };
 }

@@ -1,4 +1,5 @@
 import type {
+  MaturityGapBucket,
   StressCurvePoint,
   StressScenario,
   TreasuryAnalysisResponse,
@@ -228,6 +229,101 @@ const forecastDays =
     },
   );
 
+const demoMaturityValues = [
+  {
+    id: "overdue",
+    label: "Vadesi geçmiş",
+    assets: 12_800_000,
+    liabilities: 2_400_000,
+  },
+  ...[
+    [38_000_000, 44_000_000],
+    [24_000_000, 31_000_000],
+    [18_000_000, 27_000_000],
+    [22_000_000, 35_000_000],
+    [16_000_000, 28_000_000],
+    [19_000_000, 42_000_000],
+    [14_000_000, 25_000_000],
+    [20_000_000, 18_000_000],
+    [24_000_000, 31_000_000],
+    [21_000_000, 20_000_000],
+    [25_000_000, 17_000_000],
+    [30_000_000, 22_000_000],
+  ].map(
+    ([assets, liabilities], index) => ({
+      id: `M${String(index + 1).padStart(2, "0")}`,
+      label:
+        index === 0
+          ? "0–30 gün"
+          : index === 11
+            ? "331–365 gün"
+            : `${index * 30 + 1}–${(index + 1) * 30} gün`,
+      assets,
+      liabilities,
+    }),
+  ),
+  {
+    id: "over12m",
+    label: ">12 ay",
+    assets: 45_000_000,
+    liabilities: 90_000_000,
+  },
+];
+
+let demoCumulativeGap =
+  42_000_000;
+
+const demoMaturityBuckets:
+  MaturityGapBucket[] =
+    demoMaturityValues.map(
+      (
+        {
+          id,
+          label,
+          assets,
+          liabilities,
+        },
+        index,
+      ): MaturityGapBucket => {
+        const netGap =
+          assets - liabilities;
+        demoCumulativeGap += netGap;
+
+        return {
+          id,
+          label,
+          startDate:
+            index === 0
+              ? null
+              : addDays(
+                  "2026-08-14",
+                  index === 13
+                    ? 366
+                    : index === 1
+                      ? 0
+                      : (index - 1) * 30 + 1,
+                ),
+          endDate:
+            index === 0
+              ? "2026-08-13"
+              : index === 13
+                ? null
+                : addDays(
+                    "2026-08-14",
+                    index === 12
+                      ? 365
+                      : index * 30,
+                  ),
+          assets,
+          liabilities,
+          netGap,
+          cumulativeGap:
+            demoCumulativeGap,
+          flows: [],
+        };
+      },
+    );
+
 export const DEMO_RESPONSE:
   TreasuryAnalysisResponse = {
     imports: {
@@ -442,6 +538,31 @@ export const DEMO_RESPONSE:
             sharePercent: 14.8,
           },
         ],
+      },
+
+      maturityGap: {
+        currency: "TRY",
+        asOfDate: "2026-08-14",
+        horizonEndDate:
+          "2027-08-14",
+        openingLiquidity: 42_000_000,
+        availableFacilities: 20_000_000,
+        totalAssets12M: 283_800_000,
+        totalLiabilities12M:
+          342_400_000,
+        netGap12M: -58_600_000,
+        closingCumulativeGap12M:
+          -16_600_000,
+        minimumCumulativeGap12M:
+          -33_600_000,
+        minimumBucketId: "M09",
+        fundingNeedBeforeFacilities:
+          33_600_000,
+        residualFundingNeed:
+          13_600_000,
+        buckets:
+          demoMaturityBuckets,
+        ignoredItems: [],
       },
     },
 
