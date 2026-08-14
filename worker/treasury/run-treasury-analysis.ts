@@ -33,6 +33,10 @@ import {
   buildInterestRateRisk,
   type InterestRateRiskResult,
 } from "../alm/build-interest-rate-risk";
+import {
+  buildAlmExecutiveOverview,
+  type AlmExecutiveOverviewResult,
+} from "../alm/build-executive-overview";
 import type {
   AlmPosition,
 } from "../alm/positions";
@@ -68,6 +72,7 @@ export type TreasuryAnalysisResult = {
   maturityGap: MaturityGapResult;
   debtFunding: DebtFundingResult;
   interestRateRisk: InterestRateRiskResult;
+  executiveOverview: AlmExecutiveOverviewResult;
 };
 
 function parseIsoDate(
@@ -307,6 +312,28 @@ export function runTreasuryAnalysis(
         input.asOfDate,
     });
 
+  const executiveOverview =
+    buildAlmExecutiveOverview({
+      currency:
+        input.currency,
+
+      asOfDate:
+        input.asOfDate,
+
+      metrics,
+
+      liquidityVerdict:
+        verdict,
+
+      stress,
+
+      maturityGap,
+
+      debtFunding,
+
+      interestRateRisk,
+    });
+
   return {
     currency:
       forecast.currency,
@@ -324,5 +351,6 @@ export function runTreasuryAnalysis(
     maturityGap,
     debtFunding,
     interestRateRisk,
+    executiveOverview,
   };
 }

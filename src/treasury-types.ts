@@ -399,6 +399,51 @@ export type InterestRateRisk = {
   }[];
 };
 
+export type ExecutiveStatus =
+  | "HEALTHY"
+  | "WATCH"
+  | "ACTION_REQUIRED"
+  | "CRITICAL";
+
+export type ExecutivePillarId =
+  | "LIQUIDITY"
+  | "STRESS"
+  | "MATURITY"
+  | "FUNDING"
+  | "RATE"
+  | "DATA";
+
+export type ExecutivePillar = {
+  id: ExecutivePillarId;
+  label: string;
+  status: ExecutiveStatus;
+  headline: string;
+  reason: string;
+  action: string;
+  impactAmount: number | null;
+};
+
+export type ExecutivePriorityAction = {
+  priority: number;
+  pillarId: ExecutivePillarId;
+  status: ExecutiveStatus;
+  action: string;
+  impactAmount: number | null;
+};
+
+export type AlmExecutiveOverview = {
+  currency: string;
+  asOfDate: string;
+  status: ExecutiveStatus;
+  headline: string;
+  summary: string;
+  dominantRiskPillar: ExecutivePillarId | null;
+  pillars: ExecutivePillar[];
+  priorityActions: ExecutivePriorityAction[];
+  statusCounts: Record<ExecutiveStatus, number>;
+  dataQualityFindings: number;
+};
+
 export type TreasuryChange = {
   stableId: string;
   changeType:
@@ -466,6 +511,7 @@ export type TreasuryAnalysis = {
   maturityGap: MaturityGap;
   debtFunding: DebtFunding;
   interestRateRisk: InterestRateRisk;
+  executiveOverview: AlmExecutiveOverview;
 };
 
 export type TreasuryAnalysisResponse = {
