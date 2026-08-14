@@ -614,6 +614,11 @@ export default {
           );
         }
 
+        const analysisCurrency =
+          body.currency;
+        const analysisAsOfDate =
+          body.asOfDate;
+
         const datasets =
           body.importIds.length === 0
             ? []
@@ -634,11 +639,11 @@ export default {
               position.currency
                 .trim()
                 .toUpperCase() ===
-                body.currency
+                analysisCurrency
                   .trim()
                   .toUpperCase() &&
               position.asOfDate <=
-                body.asOfDate,
+                analysisAsOfDate,
           );
         const latestPositionDate =
           eligiblePositions.reduce(
@@ -659,7 +664,7 @@ export default {
         const positionSummary =
           summarizeAlmPositions(
             positions,
-            body.currency,
+            analysisCurrency,
           );
         const hasManualPositions =
           positions.length > 0;
@@ -679,10 +684,10 @@ export default {
             positions,
 
             currency:
-              body.currency,
+              analysisCurrency,
 
             asOfDate:
-              body.asOfDate,
+              analysisAsOfDate,
 
             openingLiquidity:
               openingLiquidity,
@@ -732,7 +737,7 @@ export default {
                 previousDatasets,
 
               currency:
-                body.currency,
+                analysisCurrency,
 
               openingLiquidity:
                 body.previousOpeningLiquidity ??
