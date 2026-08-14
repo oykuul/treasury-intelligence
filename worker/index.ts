@@ -1,4 +1,13 @@
 import { normalizeRecords } from "./canonical/normalize-records";
+import {
+  createAlmPosition,
+  deleteAlmPosition,
+  listAlmPositions,
+} from "./alm/position-store";
+import {
+  summarizeAlmPositions,
+  validateAlmPosition,
+} from "./alm/positions";
 import { persistCanonicalRecords } from "./canonical/persist-records";
 import { buildTreasuryChangeAnalysis } from "./changes/build-treasury-change-analysis";
 import { parseCsvText } from "./ingestion/csv";
@@ -51,7 +60,7 @@ export default {
       return Response.json({
         status: "ok",
         service: "treasury-intelligence-api",
-        version: "0.6.0",
+        version: "0.7.0",
         database: "connected",
       });
     }
@@ -310,6 +319,107 @@ export default {
       )
       .run();
 
+    // LIST MANUAL ALM POSITIONS
+    if (
+      url.pathname ===
+        "/api/alm/positions" &&
+      request.method === "GET"
+    ) {
+      const positions =
+        await listAlmPositions(
+          env.DB,
+          DEV_ORG_ID,
+        );
+
+      const currency =
+        url.searchParams.get(
+          "currency",
+        ) ?? "TRY";
+
+      return Response.json({
+        positions,
+        summary:
+          summarizeAlmPositions(
+            positions,
+            currency,
+          ),
+      });
+    }
+
+    // CREATE MANUAL ALM POSITION
+    if (
+      url.pathname ===
+        "/api/alm/positions" &&
+      request.method === "POST"
+    ) {
+      try {
+        const input =
+          validateAlmPosition(
+            await request.json(),
+          );
+
+        const position =
+          await createAlmPosition(
+            env.DB,
+            DEV_ORG_ID,
+            input,
+          );
+
+        return Response.json(
+          position,
+          {
+            status: 201,
+          },
+        );
+      } catch (error) {
+        return Response.json(
+          {
+            error:
+              error instanceof Error
+                ? error.message
+                : "ALM position could not be created.",
+          },
+          {
+            status: 400,
+          },
+        );
+      }
+    }
+
+    // DELETE MANUAL ALM POSITION
+    const almPositionMatch =
+      url.pathname.match(
+        /^\/api\/alm\/positions\/([^/]+)$/,
+      );
+
+    if (
+      almPositionMatch &&
+      request.method === "DELETE"
+    ) {
+      const deleted =
+        await deleteAlmPosition(
+          env.DB,
+          DEV_ORG_ID,
+          almPositionMatch[1],
+        );
+
+      if (!deleted) {
+        return Response.json(
+          {
+            error:
+              "ALM position not found.",
+          },
+          {
+            status: 404,
+          },
+        );
+      }
+
+      return new Response(null, {
+        status: 204,
+      });
+    }
+
     // CREATE IMPORT MANUALLY
     if (
       url.pathname === "/api/imports" &&
@@ -505,11 +615,13 @@ export default {
         }
 
         const datasets =
-          await loadTreasuryDatasets(
-            env.DB,
-            DEV_ORG_ID,
-            body.importIds,
-          );
+          body.importIds.length === 0
+            ? []
+            : await loadTreasuryDatasets(
+                env.DB,
+                DEV_ORG_ID,
+                body.importIds,
+              );
 
         const analysis =
           runTreasuryAnalysis({

@@ -292,3 +292,54 @@ export type TreasuryAnalysisRequest =
     previousImportIds?: string[];
     gapTargetDate?: string;
   };
+
+export type AlmPositionType =
+  | "cash"
+  | "facility";
+
+export type AlmPositionInput = {
+  positionType: AlmPositionType;
+  entity: string;
+  counterpartyName: string;
+  referenceId: string;
+  currency: string;
+  asOfDate: string;
+  availableAmount?: number;
+  restrictedAmount?: number;
+  committedAmount?: number;
+  drawnAmount?: number;
+  maturityDate?: string | null;
+  interestType?: string | null;
+  annualInterestRate?: number | null;
+};
+
+export type AlmPosition =
+  AlmPositionInput & {
+    id: string;
+    organizationId: string;
+    availableAmount: number;
+    restrictedAmount: number;
+    committedAmount: number | null;
+    drawnAmount: number | null;
+    maturityDate: string | null;
+    interestType: string | null;
+    annualInterestRate: number | null;
+    createdAt: string;
+  };
+
+export type AlmPositionSummary = {
+  currency: string;
+  cashPositions: number;
+  facilityPositions: number;
+  availableCash: number;
+  restrictedCash: number;
+  committedFacilities: number;
+  drawnFacilities: number;
+  availableFacilities: number;
+  availableLiquidity: number;
+};
+
+export type AlmPositionsResponse = {
+  positions: AlmPosition[];
+  summary: AlmPositionSummary;
+};

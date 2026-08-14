@@ -1,4 +1,5 @@
 import {
+  useCallback,
   useMemo,
   useState,
   type ChangeEvent,
@@ -8,6 +9,7 @@ import {
 } from "react";
 
 import "./App.css";
+import AlmPositionsPanel from "./AlmPositionsPanel";
 import { DEMO_RESPONSE } from "./demo-data";
 import {
   analyzeImport,
@@ -15,6 +17,7 @@ import {
 } from "./treasury-api";
 import type {
   AnalysisParameters,
+  AlmPositionSummary,
   CfoMetrics,
   DatasetType,
   GapDrivers,
@@ -354,8 +357,16 @@ function App() {
   const [refreshingGap, setRefreshingGap] = useState(false);
   const [demoMode, setDemoMode] = useState(false);
   const [selectedDate, setSelectedDate] = useState("2026-09-03");
+  const [manualPositionCount, setManualPositionCount] = useState(0);
   const currentIds = useMemo(() => DATASETS.flatMap((dataset) => uploads.current[dataset].importId ?? []), [uploads]);
   const previousIds = useMemo(() => DATASETS.flatMap((dataset) => uploads.previous[dataset].importId ?? []), [uploads]);
+  const handlePositionSummary = useCallback((positionSummary: AlmPositionSummary) => {
+    const count = positionSummary.cashPositions + positionSummary.facilityPositions;
+    setManualPositionCount(count);
+    if (count > 0) {
+      setParameters((current) => ({ ...current, openingLiquidity: positionSummary.availableCash, unusedCommittedFacilities: positionSummary.availableFacilities }));
+    }
+  }, []);
 
   async function handleFile(period: UploadPeriod, dataset: DatasetType, file: File) {
     setUploads((current) => ({ ...current, [period]: { ...current[period], [dataset]: { ...EMPTY_UPLOAD, status: "uploading", fileName: file.name } } }));
@@ -370,7 +381,7 @@ function App() {
     setParameters((current) => ({ ...current, [key]: key === "currency" || key === "asOfDate" ? value : (Number(value) || 0) * 1_000_000 }));
   }
   async function runAnalysis(gapTargetDate?: string) {
-    if (currentIds.length === 0) { setAnalysisError("En az bir güncel dönem CSV dosyası yükleyin veya demo veriyi açın."); return; }
+    if (currentIds.length === 0 && manualPositionCount === 0) { setAnalysisError("En az bir güncel CSV veya manuel ALM pozisyonu ekleyin; alternatif olarak demo veriyi açın."); return; }
     setRunning(true); setAnalysisError(null); setDemoMode(false);
     try {
       const next = await analyzeTreasury({ ...parameters, importIds: currentIds, ...(previousIds.length > 0 ? { previousImportIds: previousIds } : {}), ...(gapTargetDate ? { gapTargetDate } : {}) });
@@ -438,6 +449,7 @@ function App() {
     <main id="top">
       <header className="topbar"><div><span className="eyebrow">CORPORATE LIQUIDITY & ASSET-LIABILITY MANAGEMENT</span><h1>ALM Intelligence</h1><span className="module-badge">Liquidity module · Phase 1</span></div><div className="report-context">{demoMode && <span className="demo-badge">DEMO</span>}<span><Icon name="calendar" />{response ? formatDate(response.analysis.asOfDate) : formatDate(parameters.asOfDate)}</span><span className="currency-badge">{response?.analysis.currency ?? parameters.currency}</span></div></header>
       <Importer uploads={uploads} expanded={importerExpanded} parameters={parameters} running={running} error={analysisError} onToggle={() => setImporterExpanded((value) => !value)} onFile={handleFile} onParameter={handleParameter} onAnalyze={() => void runAnalysis()} onSamples={() => void loadSamples()} onDemo={loadDemo} />
+      <AlmPositionsPanel currency={parameters.currency} asOfDate={parameters.asOfDate} onSummaryChange={handlePositionSummary} />
       {response ? <Dashboard response={response} selectedDate={selectedDate} refreshingGap={refreshingGap} onDateSelect={(date) => void selectGapDate(date)} /> : <section className="welcome-state"><span className="welcome-icon"><Icon name="pulse" /></span><span className="eyebrow">LIQUIDITY MODULE</span><h2>ALM görünümünün kısa vadeli likidite katmanı</h2><p>CSV dosyalarınızı yükleyin, örnek dosyalarla gerçek pipeline’ı çalıştırın veya arayüzü görmek için demo veriyi açın.</p><button className="button-primary" onClick={loadDemo}><Icon name="spark" /> Demo cockpit’i aç</button></section>}
       <footer><span>Corporate ALM Intelligence · Deterministic balance-sheet analytics</span><span>Active module: 90-day liquidity</span></footer>
     </main>
