@@ -1,6 +1,116 @@
 # Corporate ALM Intelligence
 
-Corporate ALM Intelligence turns treasury and balance-sheet source data into deterministic liquidity, maturity-gap, funding, and interest-rate-risk decisions for finance teams. The current application delivers an Executive ALM Overview over 90-day liquidity, 12-month contractual maturity gap, 36-month debt and funding, and 12-month interest-rate repricing layers.
+**A treasury analytics prototype for liquidity, funding, maturity-gap, and interest-rate-risk decision support.**
+
+Corporate ALM Intelligence explores how fragmented treasury and balance-sheet data can be transformed into a structured, explainable management view for finance teams. The prototype combines source-data normalization, deterministic risk logic, scenario analysis, and an executive dashboard to support short- and medium-term treasury decisions.
+
+> **Project focus:** corporate treasury, asset-liability management, liquidity forecasting, funding risk, financial data quality, and decision-support systems.
+
+## Why this project
+
+Corporate finance teams often work with data distributed across ERP exports, spreadsheets, debt schedules, bank positions, and manually maintained assumptions. Even when the underlying information exists, answering basic management questions can require substantial reconciliation and interpretation.
+
+This project was built around a practical question:
+
+> **Can heterogeneous treasury data be converted into a transparent and reproducible decision-support layer that explains not only what the liquidity position is, but why it changes and where the main risks come from?**
+
+The prototype therefore focuses on four principles:
+
+1. **Traceability** — source data is mapped, reconciled, and checked before analysis.
+2. **Explainability** — risk outputs are deterministic and linked to their financial drivers.
+3. **Scenario awareness** — management can compare Base, Moderate, and Severe assumptions.
+4. **Decision relevance** — outputs are organized around liquidity, funding, maturity, rate risk, and priority actions rather than raw accounting records.
+
+## Financial questions explored
+
+The application is designed to answer questions such as:
+
+- What is the projected liquidity position over the next 90 days?
+- On which date does liquidity reach its minimum, and what transactions drive that gap?
+- Are committed credit facilities sufficient to cover projected funding needs?
+- How does liquidity change under Moderate and Severe stress scenarios?
+- Which counterparties contribute most to a projected cash shortfall?
+- What changed between the previous and current datasets, and how much did each change affect liquidity?
+- Where are the largest contractual maturity concentrations over the next 12 months?
+- What does the 36-month debt wall imply for refinancing needs?
+- How sensitive is annual interest expense to +100, +200, or +300 basis-point shocks?
+- Which risk pillar should management address first?
+
+## Analytical approach
+
+The system follows a source-to-decision pipeline:
+
+```mermaid
+flowchart LR
+  A["Treasury source data"] --> B["Mapping & quality checks"]
+  B --> C["Canonical financial records"]
+  C --> D["Liquidity & ALM analytics"]
+  D --> E["Stress scenarios & attribution"]
+  E --> F["Executive decision view"]
+```
+
+### 1. Data ingestion and reconciliation
+
+The importer accepts treasury datasets such as `payables`, `receivables`, and `debt`, recognizes common aliases including SAP-style field names, validates the structure, and converts records into a canonical internal model.
+
+The pipeline includes:
+
+- automatic column mapping
+- data-quality checks
+- persisted issue records
+- source-to-canonical reconciliation
+- dataset contracts by financial source type
+
+### 2. Liquidity forecasting
+
+The engine builds a 90-day cash-flow forecast from opening liquidity, expected inflows, expected outflows, debt-related items, and available committed facilities.
+
+It calculates seven executive metrics and identifies the minimum-liquidity date automatically.
+
+### 3. Stress testing
+
+Three deterministic scenarios — **Base, Moderate, and Severe** — allow comparison of:
+
+- minimum projected cash
+- funding requirement
+- threshold-breach days
+- first breach date
+- scenario-level liquidity paths
+
+### 4. Gap-driver analysis
+
+For the most stressed date, the system decomposes the liquidity position into its underlying drivers and measures counterparty concentration within the relevant gap window.
+
+### 5. What Changed analysis
+
+Current and previous datasets can be compared to detect:
+
+- amount changes
+- date shifts
+- new records
+- removed records
+
+The system then translates these record-level changes into their impact on projected liquidity through a movement and attribution bridge.
+
+### 6. Maturity, funding, and interest-rate risk
+
+The broader ALM layer includes:
+
+- **12-month contractual maturity gap**
+- **36-month debt and funding wall**
+- **facility utilization and refinancing need**
+- **lender concentration**
+- **12-month interest-rate repricing ladder**
+- **weighted average rate and annual interest expense**
+- **+100 / +200 / +300 bps sensitivity analysis**
+
+### 7. Executive overview
+
+The executive layer consolidates liquidity, stress, maturity, funding, interest-rate, and data-quality results into a common management status:
+
+`HEALTHY` · `WATCH` · `ACTION_REQUIRED` · `CRITICAL`
+
+It also identifies the dominant risk pillar and ranks the three highest-priority actions by severity and estimated financial impact.
 
 ## Current product scope
 
@@ -15,26 +125,40 @@ Corporate ALM Intelligence turns treasury and balance-sheet source data into det
 - What Changed record comparison
 - Forecast movement reconciliation and attribution bridge
 - Gap Drivers and counterparty concentration
-- Responsive CFO Liquidity Cockpit connected to the analysis API
-- Universal Data Importer UI with current/previous-period uploads, mapping review, quality findings, and reconciliation status
-- Interactive Base/Moderate/Severe chart with date-level Gap Drivers drill-down
-- CFO metric strip, deterministic verdict, stress comparison, and What Changed movement bridge
+- 12-month contractual maturity-gap analysis
+- 36-month debt and funding analysis
+- 12-month interest-rate repricing and shock sensitivity
+- Executive ALM Overview with prioritized actions
+- Responsive CFO Liquidity Cockpit
+- Universal Data Importer with mapping review and quality findings
+- Interactive stress chart with date-level Gap Drivers drill-down
 
-The cockpit opens with the data importer. Upload one or more current-period CSVs and run the analysis, or use **Demo veriyi yükle** to explore the complete interface without persisted imports. Previous-period files are optional and enable What Changed.
+## Demo data and privacy
 
-For an end-to-end local test, use **Örnek CSV’lerle çalıştır**. It uploads the six files under `public/samples` through the real ingestion API (current and previous `payables`, `receivables`, and `debt`) and then runs the complete treasury analysis. Apply the local D1 migrations first.
+The repository is designed to run with **synthetic/demo financial data**. It does not require confidential company data to demonstrate the analytical workflow.
+
+The included sample datasets can be processed through the same ingestion and analysis pipeline used by the application.
+
+## Using the application
+
+The cockpit opens with the data importer. Upload one or more current-period CSVs and run the analysis, or use **Demo veriyi yükle** to explore the interface without persisted imports. Previous-period files are optional and enable What Changed.
+
+For an end-to-end local test, use **Örnek CSV’lerle çalıştır**. It uploads the six files under `public/samples` through the real ingestion API — current and previous `payables`, `receivables`, and `debt` — and then runs the complete treasury analysis.
 
 The **Nakit ve kredi limitleri** panel supports persisted manual ALM positions. Cash entries automatically populate opening liquidity; undrawn committed facilities populate available facilities. This also allows a flat liquidity analysis to run before receivable, payable, or debt files are uploaded.
 
-Every treasury analysis response also includes `analysis.maturityGap`. It assigns overdue items plus the following 365 days to deterministic maturity buckets, separates contractual assets and liabilities, calculates net and cumulative gap, and shows the residual funding need after available committed facilities. Drawn manual facilities enter the liability ladder at maturity; matching debt and facility references are de-duplicated.
+## Architecture
 
-`analysis.debtFunding` builds a 36-month quarterly debt wall from outstanding principal and drawn facilities. It calculates debt due within 12/24/36 months, residual 12-month refinancing need after undrawn facilities, facility utilization, the largest maturity wall, and lender concentration. Debt and facility references are de-duplicated before funded debt is totaled.
+```mermaid
+flowchart TD
+  CSV["CSV source files"] --> Pipeline["Mapping, quality and canonicalization"]
+  Pipeline --> D1["Reconciled D1 records"]
+  D1 --> API["Treasury Analysis API"]
+  API --> Output["Liquidity, maturity, funding, rate risk and changes"]
+  Output --> UI["Executive ALM & Liquidity Cockpit"]
+```
 
-`analysis.interestRateRisk` classifies funded debt as fixed, floating, or unknown and builds a 12-month repricing ladder. Floating debt reprices immediately; fixed debt enters the ladder at contractual maturity as refinancing exposure. The result includes rate-data coverage, weighted average rate, current annual interest expense, and annualized run-rate sensitivity at +100, +200, and +300 basis points. The shock-sensitive balance combines floating debt with fixed debt maturing inside 12 months; hedge and derivative valuation remain outside this phase.
-
-`analysis.executiveOverview` consolidates liquidity, stress, maturity, funding, interest-rate, and data-quality results into one deterministic management status. It identifies the dominant risk pillar, applies a common `HEALTHY`, `WATCH`, `ACTION_REQUIRED`, or `CRITICAL` scale, and ranks the three highest-priority actions by severity and financial impact.
-
-## Local commands
+## Local development
 
 ```bash
 npm ci
@@ -136,12 +260,6 @@ When `previousImportIds` is present, the response also includes:
 
 The current and previous source-type sets must match so that missing datasets are not misclassified as removed or new records.
 
-## Architecture
+## Scope and limitations
 
-```mermaid
-flowchart TD
-  CSV["CSV source files"] --> Pipeline["Mapping, quality and canonicalization"]
-  Pipeline --> D1["Reconciled D1 records"]
-  D1 --> API["Treasury Analysis API"]
-  API --> Output["Liquidity, maturity, funding, rate risk and changes"]
-```
+This is a prototype and research-oriented decision-support project rather than a production treasury-management system. Its outputs depend on the completeness and quality of the supplied data and on explicitly defined deterministic assumptions. Hedge valuation, derivative pricing, stochastic interest-rate modeling, and production ERP/banking integrations are outside the current scope.
