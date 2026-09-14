@@ -4,6 +4,8 @@
 
 Corporate ALM Intelligence explores how fragmented treasury and balance-sheet data can be transformed into a structured, explainable management view for finance teams. The prototype combines source-data normalization, deterministic risk logic, scenario analysis, and an executive dashboard to support short- and medium-term treasury decisions.
 
+![Corporate ALM Intelligence overview](corporate-alm-overview.png)
+
 > **Project focus:** corporate treasury, asset-liability management, liquidity forecasting, funding risk, financial data quality, and decision-support systems.
 
 ## Why this project
