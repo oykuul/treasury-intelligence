@@ -9,13 +9,20 @@ REPLACEMENTS = {
     # Remaining app UI text
     "Gap Drivers tarihi": "Gap Drivers date",
     "Politika tamponu": "Policy buffer",
+    "Lender Yoğunlaşması": "Lender Concentration",
+    "Limit sonrası vade açığı": "Residual Funding Gap",
+
+    # Executive policy-status labels
+    '${policyLimits.counts.BREACH} ihlal': '${policyLimits.counts.BREACH} breaches',
+    '${policyLimits.counts.WATCH} izleme': '${policyLimits.counts.WATCH} watch',
+    '"Limitler içinde"': '"Within limits"',
 
     # Demo maturity labels
     '"Vadesi geçmiş"': '"Overdue"',
     '"Geçmiş"': '"Overdue"',
 
     # Demo lender names / labels
-    # Keep the proper name "Anadolu"; only normalize the Turkish bank suffix.
+    # Keep proper names intact; only normalize the Turkish bank suffix.
     '"Anadolu Bankası"': '"Anadolu Bank"',
     '"Diğer"': '"Other"',
 
@@ -48,6 +55,11 @@ for path in FILES:
     for term in [
         "Gap Drivers tarihi",
         "Politika tamponu",
+        "Lender Yoğunlaşması",
+        "Limit sonrası vade açığı",
+        " ihlal",
+        " izleme",
+        "Limitler içinde",
         "Vadesi geçmiş",
         "Geçmiş",
         "Anadolu Bankası",
