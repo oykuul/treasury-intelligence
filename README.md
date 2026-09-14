@@ -141,11 +141,11 @@ The included sample datasets can be processed through the same ingestion and ana
 
 ## Using the application
 
-The cockpit opens with the data importer. Upload one or more current-period CSVs and run the analysis, or use **Demo veriyi yükle** to explore the interface without persisted imports. Previous-period files are optional and enable What Changed.
+The cockpit opens with the data importer. Upload one or more current-period CSVs and run the analysis, or use **Load demo data** to explore the interface without persisted imports. Previous-period files are optional and enable What Changed.
 
-For an end-to-end local test, use **Örnek CSV’lerle çalıştır**. It uploads the six files under `public/samples` through the real ingestion API — current and previous `payables`, `receivables`, and `debt` — and then runs the complete treasury analysis.
+For an end-to-end local test, use **Run with sample CSVs**. It uploads the six files under `public/samples` through the real ingestion API — current and previous `payables`, `receivables`, and `debt` — and then runs the complete treasury analysis.
 
-The **Nakit ve kredi limitleri** panel supports persisted manual ALM positions. Cash entries automatically populate opening liquidity; undrawn committed facilities populate available facilities. This also allows a flat liquidity analysis to run before receivable, payable, or debt files are uploaded.
+The **Cash & Credit Facilities** panel supports persisted manual ALM positions. Cash entries automatically populate opening liquidity; undrawn committed facilities populate available facilities. This also allows a flat liquidity analysis to run before receivable, payable, or debt files are uploaded.
 
 ## Architecture
 

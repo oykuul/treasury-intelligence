@@ -260,7 +260,7 @@ const forecastDays =
 const demoMaturityValues = [
   {
     id: "overdue",
-    label: "Vadesi geçmiş",
+    label: "Overdue",
     assets: 12_800_000,
     liabilities: 2_400_000,
   },
@@ -282,17 +282,17 @@ const demoMaturityValues = [
       id: `M${String(index + 1).padStart(2, "0")}`,
       label:
         index === 0
-          ? "0–30 gün"
+          ? "0–30 days"
           : index === 11
-            ? "331–365 gün"
-            : `${index * 30 + 1}–${(index + 1) * 30} gün`,
+            ? "331–365 days"
+            : `${index * 30 + 1}–${(index + 1) * 30} days`,
       assets,
       liabilities,
     }),
   ),
   {
     id: "over12m",
-    label: ">12 ay",
+    label: ">12 months",
     assets: 45_000_000,
     liabilities: 90_000_000,
   },
@@ -384,10 +384,10 @@ const demoFundingBuckets:
               : `Q${index}`,
         label:
           index === 0
-            ? "Vadesi geçmiş"
+            ? "Overdue"
             : index === 13
-              ? ">36 ay"
-              : `${(index - 1) * 3}–${index * 3} ay`,
+              ? ">36 months"
+              : `${(index - 1) * 3}–${index * 3} months`,
         startDate:
           index === 0
             ? null
@@ -651,7 +651,7 @@ const demoRepricingBuckets:
             : `Q${index + 1}`,
         label:
           index === 4
-            ? ">12 ay"
+            ? ">12 months"
             : `${index * 3}–${(index + 1) * 3} ay`,
         startDate:
           addMonths(
@@ -827,7 +827,7 @@ export const DEMO_RESPONSE:
             datasetType: "debt",
             direction: "OUTFLOW",
             counterpartyName:
-              "Anadolu Bankası",
+              "Anadolu Bank",
             documentNo: null,
             debtId: "DEBT-024",
             date: "2026-09-03",
@@ -871,7 +871,7 @@ export const DEMO_RESPONSE:
           },
           {
             counterpartyName:
-              "Anadolu Bankası",
+              "Anadolu Bank",
             grossAmount: 5_400_000,
             netImpact: -5_400_000,
             sharePercent: 23.5,
@@ -941,7 +941,7 @@ export const DEMO_RESPONSE:
           demoFundingBuckets,
         lenders: [
           {
-            lender: "Anadolu Bankası",
+            lender: "Anadolu Bank",
             debtOutstanding: 120_000_000,
             committedFacilities: 50_000_000,
             drawnFacilities: 30_000_000,
@@ -985,7 +985,7 @@ export const DEMO_RESPONSE:
             facilityCount: 1,
           },
           {
-            lender: "Diğer",
+            lender: "Other",
             debtOutstanding: 45_000_000,
             committedFacilities: 0,
             drawnFacilities: 0,
@@ -1041,7 +1041,7 @@ export const DEMO_RESPONSE:
         repricingBuckets: demoRepricingBuckets,
         lenders: [
           {
-            lender: "Anadolu Bankası",
+            lender: "Anadolu Bank",
             totalDebt: 120_000_000,
             fixedRateDebt: 48_000_000,
             floatingRateDebt: 72_000_000,
@@ -1081,7 +1081,7 @@ export const DEMO_RESPONSE:
             instrumentCount: 2,
           },
           {
-            lender: "Diğer",
+            lender: "Other",
             totalDebt: 45_000_000,
             fixedRateDebt: 22_000_000,
             floatingRateDebt: 3_000_000,

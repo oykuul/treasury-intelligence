@@ -49,7 +49,7 @@ function money(
   currency: string,
 ): string {
   return new Intl.NumberFormat(
-    "tr-TR",
+    "en-GB",
     {
       style: "currency",
       currency,
@@ -104,7 +104,7 @@ export default function AlmPositionsPanel({
         setError(
           refreshError instanceof Error
             ? refreshError.message
-            : "Pozisyonlar yüklenemedi.",
+            : "Positions could not be loaded.",
         ),
     );
   }, [refresh]);
@@ -192,7 +192,7 @@ export default function AlmPositionsPanel({
       setError(
         submitError instanceof Error
           ? submitError.message
-          : "Pozisyon kaydedilemedi.",
+          : "Position could not be saved.",
       );
     } finally {
       setLoading(false);
@@ -214,7 +214,7 @@ export default function AlmPositionsPanel({
       setError(
         deleteError instanceof Error
           ? deleteError.message
-          : "Pozisyon silinemedi.",
+          : "Position could not be deleted.",
       );
     } finally {
       setLoading(false);
@@ -232,23 +232,21 @@ export default function AlmPositionsPanel({
             ALM POSITION INPUT
           </span>
           <h2>
-            Nakit ve kredi limitleri
+            Cash & Credit Facilities
           </h2>
           <p>
-            Banka pozisyonlarını manuel
-            girin; analiz parametreleri
-            otomatik güncellensin.
+            Enter bank positions manually; analysis parameters update automatically.
           </p>
         </div>
         <span className="position-count">
-          {positions.length} pozisyon
+          {positions.length} positions
         </span>
       </div>
 
       {summary && (
         <div className="position-summary">
           <div>
-            <span>Kullanılabilir nakit</span>
+            <span>Available cash</span>
             <strong>
               {money(
                 summary.availableCash,
@@ -257,7 +255,7 @@ export default function AlmPositionsPanel({
             </strong>
           </div>
           <div>
-            <span>Kısıtlı nakit</span>
+            <span>Restricted cash</span>
             <strong>
               {money(
                 summary.restrictedCash,
@@ -266,7 +264,7 @@ export default function AlmPositionsPanel({
             </strong>
           </div>
           <div>
-            <span>Kalan limit</span>
+            <span>Available facilities</span>
             <strong>
               {money(
                 summary.availableFacilities,
@@ -275,7 +273,7 @@ export default function AlmPositionsPanel({
             </strong>
           </div>
           <div>
-            <span>Toplam likidite</span>
+            <span>Total liquidity</span>
             <strong>
               {money(
                 summary.availableLiquidity,
@@ -288,11 +286,11 @@ export default function AlmPositionsPanel({
 
       <details className="position-entry">
         <summary>
-          Yeni manuel pozisyon ekle
+          Add manual position
         </summary>
         <form onSubmit={submit}>
           <label>
-            Pozisyon tipi
+            Position type
             <select
               value={form.positionType}
               onChange={(event) =>
@@ -304,15 +302,15 @@ export default function AlmPositionsPanel({
               }
             >
               <option value="cash">
-                Nakit hesabı
+                Cash account
               </option>
               <option value="facility">
-                Kredi limiti
+                Credit facility
               </option>
             </select>
           </label>
           <label>
-            Şirket / entity
+            Company / entity
             <input
               required
               value={form.entity}
@@ -326,8 +324,8 @@ export default function AlmPositionsPanel({
           </label>
           <label>
             {form.positionType === "cash"
-              ? "Banka"
-              : "Kredi veren"}
+              ? "Bank"
+              : "Lender"}
             <input
               required
               value={
@@ -343,7 +341,7 @@ export default function AlmPositionsPanel({
           </label>
           <label>
             {form.positionType === "cash"
-              ? "Hesap ID"
+              ? "Account ID"
               : "Limit ID"}
             <input
               required
@@ -360,7 +358,7 @@ export default function AlmPositionsPanel({
           {form.positionType === "cash" ? (
             <>
               <label>
-                Kullanılabilir (mn)
+                Available (mn)
                 <input
                   required
                   min="0"
@@ -378,7 +376,7 @@ export default function AlmPositionsPanel({
                 />
               </label>
               <label>
-                Kısıtlı (mn)
+                Restricted (mn)
                 <input
                   required
                   min="0"
@@ -399,7 +397,7 @@ export default function AlmPositionsPanel({
           ) : (
             <>
               <label>
-                Taahhütlü limit (mn)
+                Committed facility (mn)
                 <input
                   required
                   min="0"
@@ -417,7 +415,7 @@ export default function AlmPositionsPanel({
                 />
               </label>
               <label>
-                Kullanılan limit (mn)
+                Drawn facility (mn)
                 <input
                   required
                   min="0"
@@ -433,7 +431,7 @@ export default function AlmPositionsPanel({
                 />
               </label>
               <label>
-                Vade
+                Maturity
                 <input
                   type="date"
                   value={form.maturityDate}
@@ -446,7 +444,7 @@ export default function AlmPositionsPanel({
                 />
               </label>
               <label>
-                Faiz tipi
+                Rate type
                 <select
                   value={form.interestType}
                   onChange={(event) =>
@@ -457,15 +455,15 @@ export default function AlmPositionsPanel({
                   }
                 >
                   <option value="Fixed">
-                    Sabit
+                    Fixed
                   </option>
                   <option value="Floating">
-                    Değişken
+                    Floating
                   </option>
                 </select>
               </label>
               <label>
-                Yıllık faiz (%)
+                Annual interest rate (%)
                 <input
                   min="0"
                   step="0.01"
@@ -489,8 +487,8 @@ export default function AlmPositionsPanel({
             disabled={loading}
           >
             {loading
-              ? "Kaydediliyor…"
-              : "Pozisyonu kaydet"}
+              ? "Saving…"
+              : "Save position"}
           </button>
         </form>
       </details>
@@ -513,8 +511,8 @@ export default function AlmPositionsPanel({
               >
                 {position.positionType ===
                 "cash"
-                  ? "NAKİT"
-                  : "LİMİT"}
+                  ? "CASH"
+                  : "FACILITY"}
               </span>
               <div>
                 <strong>
@@ -531,7 +529,7 @@ export default function AlmPositionsPanel({
                   position.currency,
                 )}
                 <small>
-                  kullanılabilir
+                  available
                 </small>
               </span>
               <button
@@ -542,7 +540,7 @@ export default function AlmPositionsPanel({
                     position.id,
                   )
                 }
-                aria-label={`${position.counterpartyName} pozisyonunu sil`}
+                aria-label={`${position.counterpartyName} position`}
               >
                 Sil
               </button>
